@@ -107,6 +107,8 @@ pub fn genesis() -> SealedBlock {
             .seal(B256::ZERO),
         body: vec![],
         ommers: vec![],
+        #[cfg(feature = "kasplex")]
+        numbers: None,
         withdrawals: Some(Withdrawals::default()),
         requests: Some(Requests::default()),
     }

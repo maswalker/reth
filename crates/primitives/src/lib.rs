@@ -35,6 +35,8 @@ mod error;
 pub mod genesis;
 pub mod header;
 mod integer_list;
+#[cfg(feature = "kasplex")]
+pub mod kasplex_tx_mapping;
 mod log;
 pub mod proofs;
 mod receipt;
@@ -140,3 +142,15 @@ mod optimism {
 
 #[cfg(feature = "optimism")]
 pub use optimism::*;
+
+/// Kasplex specific re-exports
+#[cfg(feature = "kasplex")]
+mod kasplex {
+    pub use crate::kasplex_tx_mapping::{TxMapping, UNEXECUTED_TX_RETENTION_BLOCKS};
+    pub use reth_chainspec::{
+        KASPLEX_DEVNET, KASPLEX_INTERNAL_L2, KASPLEX_MAINNET, KASPLEX_TESTNET,
+    };
+}
+
+#[cfg(feature = "kasplex")]
+pub use kasplex::*;

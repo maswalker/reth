@@ -986,6 +986,10 @@ pub struct TransactionSigned {
     #[deref]
     #[as_ref]
     pub transaction: Transaction,
+    /// [kasplex]: Transaction submission block number
+    #[cfg(feature = "kasplex")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub number: Option<u64>,
 }
 
 impl AsRef<Self> for TransactionSigned {
@@ -1187,7 +1191,13 @@ impl TransactionSigned {
     ///
     /// This will also calculate the transaction hash using its encoding.
     pub fn from_transaction_and_signature(transaction: Transaction, signature: Signature) -> Self {
-        let mut initial_tx = Self { transaction, hash: Default::default(), signature };
+        let mut initial_tx = Self {
+            transaction,
+            hash: Default::default(),
+            signature,
+            #[cfg(feature = "kasplex")]
+            number: None,
+        };
         initial_tx.hash = initial_tx.recalculate_hash();
         initial_tx
     }
@@ -1255,7 +1265,13 @@ impl TransactionSigned {
     // so decoding methods do not need to manually advance the buffer
     pub fn decode_rlp_legacy_transaction(data: &mut &[u8]) -> alloy_rlp::Result<Self> {
         let (transaction, hash, signature) = Self::decode_rlp_legacy_transaction_tuple(data)?;
-        let signed = Self { transaction: Transaction::Legacy(transaction), hash, signature };
+        let signed = Self {
+            transaction: Transaction::Legacy(transaction),
+            hash,
+            signature,
+            #[cfg(feature = "kasplex")]
+            number: None,
+        };
         Ok(signed)
     }
 
@@ -1317,7 +1333,13 @@ impl TransactionSigned {
         }
 
         let hash = keccak256(&original_encoding_without_header[..tx_length]);
-        let signed = Self { transaction, hash, signature };
+        let signed = Self {
+            transaction,
+            hash,
+            signature,
+            #[cfg(feature = "kasplex")]
+            number: None,
+        };
         Ok(signed)
     }
 
@@ -1487,7 +1509,13 @@ impl proptest::arbitrary::Arbitrary for TransactionSigned {
                         if tx_eip_4844.to != Address::default() { Some(()) } else { None };
                 }
 
-                let mut tx = Self { hash: Default::default(), signature: sig, transaction };
+                let mut tx = Self {
+                    hash: Default::default(),
+                    signature: sig,
+                    transaction,
+                    #[cfg(feature = "kasplex")]
+                    number: None,
+                };
                 tx.hash = tx.recalculate_hash();
                 tx
             })

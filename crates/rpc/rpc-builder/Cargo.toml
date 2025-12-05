@@ -42,6 +42,9 @@ serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 tracing.workspace = true
 
+[features]
+kasplex = ["reth-rpc-api/kasplex", "reth-rpc-server-types/kasplex"]
+
 [dev-dependencies]
 reth-chainspec.workspace = true
 reth-beacon-consensus.workspace = true

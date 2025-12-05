@@ -41,11 +41,27 @@ impl BlobTransaction {
         tx: TransactionSigned,
         sidecar: BlobTransactionSidecar,
     ) -> Result<Self, (TransactionSigned, BlobTransactionSidecar)> {
-        let TransactionSigned { transaction, signature, hash } = tx;
+        #[cfg(feature = "kasplex")]
+        let TransactionSigned { transaction, signature, hash, number } = tx.clone();
+        #[cfg(not(feature = "kasplex"))]
+        let TransactionSigned { transaction, signature, hash } = tx.clone();
+        
         match transaction {
             Transaction::Eip4844(transaction) => Ok(Self { hash, transaction, signature, sidecar }),
             transaction => {
-                let tx = TransactionSigned { transaction, signature, hash };
+                #[cfg(feature = "kasplex")]
+                let tx = TransactionSigned {
+                    transaction,
+                    signature,
+                    hash,
+                    number,
+                };
+                #[cfg(not(feature = "kasplex"))]
+                let tx = TransactionSigned {
+                    transaction,
+                    signature,
+                    hash,
+                };
                 Err((tx, sidecar))
             }
         }
@@ -67,6 +83,8 @@ impl BlobTransaction {
     pub fn into_parts(self) -> (TransactionSigned, BlobTransactionSidecar) {
         let transaction = TransactionSigned {
             transaction: Transaction::Eip4844(self.transaction),
+            #[cfg(feature = "kasplex")]
+            number: None,
             hash: self.hash,
             signature: self.signature,
         };

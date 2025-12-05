@@ -25,3 +25,8 @@ tokio = { workspace = true, features = ["sync"] }
 # misc
 thiserror.workspace = true
 serde.workspace = true
+sha2 = { workspace = true, optional = true }
+alloy-rlp = { workspace = true, optional = true }
+
+[features]
+kasplex = ["sha2", "alloy-rlp"]

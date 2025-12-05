@@ -108,6 +108,16 @@ optimism = [
     "reth-beacon-consensus/optimism",
 ]
 
+kasplex = [
+    "reth-chainspec/kasplex",
+    "reth-primitives/kasplex",
+    "reth-rpc/kasplex",
+    "reth-rpc-types-compat/kasplex",
+    "reth-transaction-pool/kasplex",
+    "reth-consensus-common/kasplex",
+    "reth-beacon-consensus/kasplex",
+]
+
 jemalloc = ["dep:tikv-jemalloc-ctl"]
 
 [build-dependencies]

@@ -749,6 +749,11 @@ impl EthPoolTransaction for MockTransaction {
             _ => Err(BlobTransactionValidationError::NotBlobTransaction(self.tx_type())),
         }
     }
+
+    #[cfg(feature = "kasplex")]
+    fn tx_number(&self) -> Option<u64> {
+        None // Mock transactions don't have numbers
+    }
 }
 
 impl TryFromRecoveredTransaction for MockTransaction {
@@ -882,6 +887,8 @@ impl IntoRecoveredTransaction for MockTransaction {
             hash: *self.hash(),
             signature: Signature::default(),
             transaction: tx,
+            #[cfg(feature = "kasplex")]
+            number: None,
         };
 
         TransactionSignedEcRecovered::from_signed_transaction(signed_tx, self.sender())

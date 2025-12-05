@@ -16,6 +16,8 @@ pub use spec::{
 };
 #[cfg(feature = "optimism")]
 pub use spec::{BASE_MAINNET, BASE_SEPOLIA, OP_MAINNET, OP_SEPOLIA};
+#[cfg(feature = "kasplex")]
+pub use spec::{KASPLEX_MAINNET, KASPLEX_INTERNAL_L2, KASPLEX_TESTNET, KASPLEX_DEVNET};
 
 // /// The config info module namely spec id.
 // pub mod config;

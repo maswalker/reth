@@ -967,7 +967,15 @@ impl<TX: DbTxMut + DbTx> DatabaseProvider<TX> {
             }
 
             blocks.push(SealedBlockWithSenders {
-                block: SealedBlock { header, body, ommers, withdrawals, requests },
+                block: SealedBlock {
+                    header,
+                    body,
+                    ommers,
+                    withdrawals,
+                    requests,
+                    #[cfg(feature = "kasplex")]
+                    numbers: None,
+                },
                 senders,
             })
         }
@@ -1500,7 +1508,15 @@ impl<TX: DbTx> BlockReader for DatabaseProvider<TX> {
                     None => return Ok(None),
                 };
 
-                return Ok(Some(Block { header, body: transactions, ommers, withdrawals, requests }))
+                return Ok(Some(Block {
+                    header,
+                    body: transactions,
+                    ommers,
+                    withdrawals,
+                    requests,
+                    #[cfg(feature = "kasplex")]
+                    numbers: None,
+                }))
             }
         }
 
@@ -1582,12 +1598,22 @@ impl<TX: DbTx> BlockReader for DatabaseProvider<TX> {
                     hash: B256::ZERO,
                     signature: tx.signature,
                     transaction: tx.transaction,
+                    #[cfg(feature = "kasplex")]
+                    number: None,
                 },
                 TransactionVariant::WithHash => tx.with_hash(),
             })
             .collect();
 
-        Block { header, body, ommers, withdrawals, requests }
+        Block {
+            header,
+            body,
+            ommers,
+            withdrawals,
+            requests,
+            #[cfg(feature = "kasplex")]
+            numbers: None,
+        }
             // Note: we're using unchecked here because we know the block contains valid txs wrt to
             // its height and can ignore the s value check so pre EIP-2 txs are allowed
             .try_with_senders_unchecked(senders)
@@ -1609,7 +1635,15 @@ impl<TX: DbTx> BlockReader for DatabaseProvider<TX> {
                         .map(Into::into)
                         .collect()
                 };
-                Ok(Block { header, body, ommers, withdrawals, requests })
+                Ok(Block {
+                    header,
+                    body,
+                    ommers,
+                    withdrawals,
+                    requests,
+                    #[cfg(feature = "kasplex")]
+                    numbers: None,
+                })
             },
         )
     }
@@ -1622,8 +1656,16 @@ impl<TX: DbTx> BlockReader for DatabaseProvider<TX> {
             range,
             |range| self.headers_range(range),
             |header, body, ommers, withdrawals, requests, senders| {
-                Block { header, body, ommers, withdrawals, requests }
-                    .try_with_senders_unchecked(senders)
+                Block {
+                    header,
+                    body,
+                    ommers,
+                    withdrawals,
+                    requests,
+                    #[cfg(feature = "kasplex")]
+                    numbers: None,
+                }
+                .try_with_senders_unchecked(senders)
                     .map_err(|_| ProviderError::SenderRecoveryError)
             },
         )
@@ -1638,7 +1680,15 @@ impl<TX: DbTx> BlockReader for DatabaseProvider<TX> {
             |range| self.sealed_headers_range(range),
             |header, body, ommers, withdrawals, requests, senders| {
                 SealedBlockWithSenders::new(
-                    SealedBlock { header, body, ommers, withdrawals, requests },
+                    SealedBlock {
+                        header,
+                        body,
+                        ommers,
+                        withdrawals,
+                        requests,
+                        #[cfg(feature = "kasplex")]
+                        numbers: None,
+                    },
                     senders,
                 )
                 .ok_or(ProviderError::SenderRecoveryError)
@@ -1747,6 +1797,8 @@ impl<TX: DbTx> TransactionsProvider for DatabaseProvider<TX> {
                 hash,
                 signature: tx.signature,
                 transaction: tx.transaction,
+                #[cfg(feature = "kasplex")]
+                number: None,
             }))
         } else {
             Ok(None)
@@ -1765,6 +1817,8 @@ impl<TX: DbTx> TransactionsProvider for DatabaseProvider<TX> {
                     hash: tx_hash,
                     signature: tx.signature,
                     transaction: tx.transaction,
+                    #[cfg(feature = "kasplex")]
+                    number: None,
                 };
                 if let Some(block_number) =
                     transaction_cursor.seek(transaction_id).map(|b| b.map(|(_, bn)| bn))?

@@ -384,6 +384,18 @@ where
     /// Handler for: `eth_sendRawTransaction`
     async fn send_raw_transaction(&self, tx: Bytes) -> Result<B256> {
         trace!(target: "rpc::eth", ?tx, "Serving eth_sendRawTransaction");
+        
+        // [kasplex]: Disable eth_sendRawTransaction for Kasplex networks
+        #[cfg(feature = "kasplex")]
+        {
+            let chain_spec = self.provider().chain_spec();
+            if chain_spec.is_kasplex() {
+                return Err(internal_rpc_err(
+                    "eth_sendRawTransaction is disabled for Kasplex networks. Use kasplexAuth_sendRawTransaction instead."
+                ));
+            }
+        }
+        
         Ok(EthTransactions::send_raw_transaction(self, tx).await?)
     }
 

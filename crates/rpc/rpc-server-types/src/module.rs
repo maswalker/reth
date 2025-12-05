@@ -260,6 +260,12 @@ pub enum RethRpcModule {
     /// This is separate from [`RethRpcModule::Eth`] because it is a non standardized call that
     /// should be opt-in.
     EthCallBundle,
+    /// `kasplex_` module
+    #[cfg(feature = "kasplex")]
+    Kasplex,
+    /// `kasplexAuth_` module
+    #[cfg(feature = "kasplex")]
+    KasplexAuth,
 }
 
 // === impl RethRpcModule ===
@@ -309,6 +315,10 @@ impl FromStr for RethRpcModule {
             "reth" => Self::Reth,
             "ots" => Self::Ots,
             "eth-call-bundle" | "eth_callBundle" => Self::EthCallBundle,
+            #[cfg(feature = "kasplex")]
+            "kasplex" => Self::Kasplex,
+            #[cfg(feature = "kasplex")]
+            "kasplex-auth" | "kasplexAuth" => Self::KasplexAuth,
             _ => return Err(ParseError::VariantNotFound),
         })
     }

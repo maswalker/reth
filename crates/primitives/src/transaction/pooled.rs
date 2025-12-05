@@ -59,21 +59,26 @@ impl PooledTransactionsElement {
     /// [`PooledTransactionsElement`]. Since [`BlobTransaction`] is disallowed to be broadcasted on
     /// p2p, return an err if `tx` is [`Transaction::Eip4844`].
     pub fn try_from_broadcast(tx: TransactionSigned) -> Result<Self, TransactionSigned> {
-        match tx {
-            TransactionSigned { transaction: Transaction::Legacy(tx), signature, hash } => {
+        #[cfg(feature = "kasplex")]
+        let TransactionSigned { transaction, signature, hash, number: _ } = tx.clone();
+        #[cfg(not(feature = "kasplex"))]
+        let TransactionSigned { transaction, signature, hash } = tx.clone();
+        
+        match transaction {
+            Transaction::Legacy(tx) => {
                 Ok(Self::Legacy { transaction: tx, signature, hash })
             }
-            TransactionSigned { transaction: Transaction::Eip2930(tx), signature, hash } => {
+            Transaction::Eip2930(tx) => {
                 Ok(Self::Eip2930 { transaction: tx, signature, hash })
             }
-            TransactionSigned { transaction: Transaction::Eip1559(tx), signature, hash } => {
+            Transaction::Eip1559(tx) => {
                 Ok(Self::Eip1559 { transaction: tx, signature, hash })
             }
             // Not supported because missing blob sidecar
-            tx @ TransactionSigned { transaction: Transaction::Eip4844(_), .. } => Err(tx),
+            Transaction::Eip4844(_) => Err(tx),
             #[cfg(feature = "optimism")]
             // Not supported because deposit transactions are never pooled
-            tx @ TransactionSigned { transaction: Transaction::Deposit(_), .. } => Err(tx),
+            Transaction::Deposit(_) => Err(tx),
         }
     }
 
@@ -86,16 +91,21 @@ impl PooledTransactionsElement {
         tx: TransactionSigned,
         sidecar: BlobTransactionSidecar,
     ) -> Result<Self, TransactionSigned> {
-        Ok(match tx {
+        #[cfg(feature = "kasplex")]
+        let TransactionSigned { transaction, signature, hash, number: _ } = tx.clone();
+        #[cfg(not(feature = "kasplex"))]
+        let TransactionSigned { transaction, signature, hash } = tx.clone();
+        
+        match transaction {
             // If the transaction is an EIP-4844 transaction...
-            TransactionSigned { transaction: Transaction::Eip4844(tx), signature, hash } => {
+            Transaction::Eip4844(tx) => {
                 // Construct a `PooledTransactionsElement::BlobTransaction` with provided sidecar.
-                Self::BlobTransaction(BlobTransaction { transaction: tx, signature, hash, sidecar })
+                Ok(Self::BlobTransaction(BlobTransaction { transaction: tx, signature, hash, sidecar }))
             }
             // If the transaction is not EIP-4844, return an error with the original
             // transaction.
-            _ => return Err(tx),
-        })
+            _ => Err(tx),
+        }
     }
 
     /// Heavy operation that return signature hash over rlp encoded transaction.
@@ -255,17 +265,27 @@ impl PooledTransactionsElement {
     pub fn into_transaction(self) -> TransactionSigned {
         match self {
             Self::Legacy { transaction, signature, hash } => {
-                TransactionSigned { transaction: Transaction::Legacy(transaction), signature, hash }
+                TransactionSigned {
+                    transaction: Transaction::Legacy(transaction),
+                    signature,
+                    hash,
+                    #[cfg(feature = "kasplex")]
+                    number: None,
+                }
             }
             Self::Eip2930 { transaction, signature, hash } => TransactionSigned {
                 transaction: Transaction::Eip2930(transaction),
                 signature,
                 hash,
+                #[cfg(feature = "kasplex")]
+                number: None,
             },
             Self::Eip1559 { transaction, signature, hash } => TransactionSigned {
                 transaction: Transaction::Eip1559(transaction),
                 signature,
                 hash,
+                #[cfg(feature = "kasplex")]
+                number: None,
             },
             Self::BlobTransaction(blob_tx) => blob_tx.into_parts().0,
         }

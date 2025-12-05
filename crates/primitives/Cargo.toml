@@ -45,6 +45,7 @@ byteorder = "1"
 derive_more.workspace = true
 modular-bitfield.workspace = true
 once_cell.workspace = true
+parking_lot.workspace = true
 rayon.workspace = true
 serde.workspace = true
 tempfile = { workspace = true, optional = true }
@@ -117,6 +118,7 @@ optimism = [
     "reth-ethereum-forks/optimism",
     "revm/optimism",
 ]
+kasplex = []
 alloy-compat = [
     "reth-primitives-traits/alloy-compat",
     "alloy-rpc-types",

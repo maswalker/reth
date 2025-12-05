@@ -32,9 +32,10 @@ prop_compose! {
 /// Withdrawals can be optionally included at the end of the RLP encoded message.
 #[derive_arbitrary(rlp, 25)]
 #[derive(
-    Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Deref, RlpEncodable, RlpDecodable,
+    Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Deref,
 )]
-#[rlp(trailing)]
+#[cfg_attr(not(feature = "kasplex"), derive(RlpEncodable, RlpDecodable))]
+#[cfg_attr(not(feature = "kasplex"), rlp(trailing))]
 pub struct Block {
     /// Block header.
     #[cfg_attr(any(test, feature = "arbitrary"), proptest(strategy = "valid_header_strategy()"))]
@@ -63,6 +64,10 @@ pub struct Block {
     /// Block requests.
     #[cfg_attr(any(test, feature = "arbitrary"), proptest(strategy = "empty_requests_strategy()"))]
     pub requests: Option<Requests>,
+    /// [kasplex]: Transaction submission block numbers
+    #[cfg(feature = "kasplex")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub numbers: Option<Vec<u64>>,
 }
 
 impl Block {
@@ -74,6 +79,8 @@ impl Block {
             ommers: self.ommers,
             withdrawals: self.withdrawals,
             requests: self.requests,
+            #[cfg(feature = "kasplex")]
+            numbers: self.numbers,
         }
     }
 
@@ -87,6 +94,8 @@ impl Block {
             ommers: self.ommers,
             withdrawals: self.withdrawals,
             requests: self.requests,
+            #[cfg(feature = "kasplex")]
+            numbers: self.numbers,
         }
     }
 
@@ -299,6 +308,10 @@ pub struct SealedBlock {
     /// Block requests.
     #[cfg_attr(any(test, feature = "arbitrary"), proptest(strategy = "empty_requests_strategy()"))]
     pub requests: Option<Requests>,
+    /// [kasplex]: Transaction submission block numbers
+    #[cfg(feature = "kasplex")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub numbers: Option<Vec<u64>>,
 }
 
 impl SealedBlock {
@@ -306,7 +319,15 @@ impl SealedBlock {
     #[inline]
     pub fn new(header: SealedHeader, body: BlockBody) -> Self {
         let BlockBody { transactions, ommers, withdrawals, requests } = body;
-        Self { header, body: transactions, ommers, withdrawals, requests }
+        Self {
+            header,
+            body: transactions,
+            ommers,
+            withdrawals,
+            requests,
+            #[cfg(feature = "kasplex")]
+            numbers: None,
+        }
     }
 
     /// Header hash.
@@ -387,6 +408,8 @@ impl SealedBlock {
             ommers: self.ommers,
             withdrawals: self.withdrawals,
             requests: self.requests,
+            #[cfg(feature = "kasplex")]
+            numbers: self.numbers,
         }
     }
 
@@ -547,6 +570,8 @@ impl BlockBody {
             ommers: self.ommers.clone(),
             withdrawals: self.withdrawals.clone(),
             requests: self.requests.clone(),
+            #[cfg(feature = "kasplex")]
+            numbers: None,
         }
     }
 
@@ -592,6 +617,142 @@ impl From<Block> for BlockBody {
             ommers: block.ommers,
             withdrawals: block.withdrawals,
             requests: block.requests,
+        }
+    }
+}
+
+// [kasplex]: Manual RLP encoding/decoding for Block to handle numbers field
+#[cfg(feature = "kasplex")]
+mod kasplex_rlp {
+    use super::Block;
+    use alloy_rlp::{Decodable, Encodable, Header};
+    use crate::{Header as BlockHeader, Requests, TransactionSigned, Withdrawals};
+
+    impl Encodable for Block {
+        fn encode(&self, out: &mut dyn alloy_rlp::BufMut) {
+            // Calculate payload length
+            let mut payload_length = 0;
+            payload_length += self.header.length();
+            payload_length += self.body.length();
+            payload_length += self.ommers.length();
+            
+            // Trailing fields
+            if let Some(ref withdrawals) = self.withdrawals {
+                payload_length += withdrawals.length();
+            }
+            if let Some(ref requests) = self.requests {
+                payload_length += requests.length();
+            }
+            // [kasplex]: Add numbers field length
+            if let Some(ref numbers) = self.numbers {
+                payload_length += numbers.length();
+            }
+
+            // Encode header
+            let header = Header { list: true, payload_length };
+            header.encode(out);
+
+            // Encode fixed fields
+            self.header.encode(out);
+            self.body.encode(out);
+            self.ommers.encode(out);
+
+            // Encode trailing fields
+            if let Some(ref withdrawals) = self.withdrawals {
+                withdrawals.encode(out);
+            }
+            if let Some(ref requests) = self.requests {
+                requests.encode(out);
+            }
+            // [kasplex]: Encode numbers field
+            if let Some(ref numbers) = self.numbers {
+                numbers.encode(out);
+            }
+        }
+
+        fn length(&self) -> usize {
+            let mut length = 0;
+            length += self.header.length();
+            length += self.body.length();
+            length += self.ommers.length();
+            
+            // Trailing fields
+            if let Some(ref withdrawals) = self.withdrawals {
+                length += withdrawals.length();
+            }
+            if let Some(ref requests) = self.requests {
+                length += requests.length();
+            }
+            // [kasplex]: Add numbers field length
+            if let Some(ref numbers) = self.numbers {
+                length += numbers.length();
+            }
+
+            // Add header length
+            let payload_length = length;
+            length += Header { list: true, payload_length }.length();
+            length
+        }
+    }
+
+    impl Decodable for Block {
+        fn decode(buf: &mut &[u8]) -> alloy_rlp::Result<Self> {
+            let header = Header::decode(buf)?;
+            if !header.list {
+                return Err(alloy_rlp::Error::UnexpectedString);
+            }
+
+            let started_len = buf.len();
+            let payload_length = header.payload_length;
+            
+            // Decode fixed fields
+            let header = BlockHeader::decode(buf)?;
+            let body = Vec::<TransactionSigned>::decode(buf)?;
+            let ommers = Vec::<BlockHeader>::decode(buf)?;
+
+            // Decode trailing fields
+            let mut withdrawals = None;
+            let mut requests = None;
+            let mut numbers = None;
+
+            // Check if we have more data to decode
+            while started_len - buf.len() < payload_length {
+                // Try to decode withdrawals
+                if withdrawals.is_none() {
+                    if let Ok(w) = Withdrawals::decode(buf) {
+                        withdrawals = Some(w);
+                        continue;
+                    }
+                }
+
+                // Try to decode requests
+                if requests.is_none() {
+                    if let Ok(r) = Requests::decode(buf) {
+                        requests = Some(r);
+                        continue;
+                    }
+                }
+
+                // [kasplex]: Try to decode numbers
+                if numbers.is_none() {
+                    if let Ok(n) = Vec::<u64>::decode(buf) {
+                        numbers = Some(n);
+                        continue;
+                    }
+                }
+
+                // If we can't decode any more trailing fields, break
+                break;
+            }
+
+            Ok(Block {
+                header,
+                body,
+                ommers,
+                withdrawals,
+                requests,
+                numbers,
+            })
         }
     }
 }

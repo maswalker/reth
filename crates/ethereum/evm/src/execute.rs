@@ -4,6 +4,8 @@ use crate::{
     dao_fork::{DAO_HARDFORK_BENEFICIARY, DAO_HARDKFORK_ACCOUNTS},
     EthEvmConfig,
 };
+#[cfg(feature = "kasplex")]
+use crate::kasplex::get_treasury_address;
 use reth_chainspec::{ChainSpec, MAINNET};
 use reth_ethereum_consensus::validate_block_post_execution;
 use reth_evm::{
@@ -341,6 +343,25 @@ where
             // return balance to DAO beneficiary.
             *balance_increments.entry(DAO_HARDFORK_BENEFICIARY).or_default() += drained_balance;
         }
+
+        // [kasplex]: Send base fee to treasury address instead of burning
+        #[cfg(feature = "kasplex")]
+        if self.chain_spec().is_kasplex() {
+            if let Some(base_fee_per_gas) = block.header.base_fee_per_gas {
+                // Calculate total base fee: gas_used * base_fee_per_gas
+                // Note: This is an approximation. In reality, each transaction's base fee
+                // should be calculated individually, but for simplicity we use block gas_used
+                let total_base_fee = U256::from(block.header.gas_used)
+                    .saturating_mul(U256::from(base_fee_per_gas));
+                
+                // Convert to u128 for balance increment (may lose precision for very large values)
+                if let Ok(base_fee_u128) = total_base_fee.try_into() {
+                    let treasury_address = get_treasury_address(self.chain_spec());
+                    *balance_increments.entry(treasury_address).or_default() += base_fee_u128;
+                }
+            }
+        }
+
         // increment balances
         self.state
             .increment_balances(balance_increments)

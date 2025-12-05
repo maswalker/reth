@@ -251,6 +251,141 @@ impl<T: TransactionOrdering> TxPool<T> {
         if let Some(blob_fee) = pending_blob_fee {
             self.update_blob_fee(blob_fee, basefee_ordering)
         }
+
+        // [kasplex]: Remove expired transactions based on transaction number
+        #[cfg(feature = "kasplex")]
+        {
+            self.remove_expired_transactions(last_seen_block_number);
+        }
+    }
+
+    /// [kasplex]: Remove expired transactions based on transaction number
+    ///
+    /// A transaction is considered expired if:
+    /// - `tx.Number + UNEXECUTED_TX_RETENTION_BLOCKS < CurrentBlockNumber`
+    /// - `tx.Number > CurrentBlockNumber` (future block transaction)
+    #[cfg(feature = "kasplex")]
+    fn remove_expired_transactions(&mut self, current_block_number: u64) {
+        use crate::traits::EthPoolTransaction;
+        use reth_primitives::kasplex_tx_mapping::UNEXECUTED_TX_RETENTION_BLOCKS;
+        use std::any::Any;
+
+        // Collect expired transaction IDs
+        let expired_txs: Vec<_> = self
+            .all_transactions
+            .txs
+            .iter()
+            .filter_map(|(id, tx)| {
+                // Try to get transaction number via EthPoolTransaction trait
+                // Use trait object to avoid requiring trait bound on T::Transaction
+                let tx_number = (&tx.transaction as &dyn Any)
+                    .downcast_ref::<crate::EthPooledTransaction>()
+                    .and_then(|eth_tx| eth_tx.tx_number());
+                
+                if let Some(tx_number) = tx_number {
+                    // Check if transaction is expired
+                    if tx_number + UNEXECUTED_TX_RETENTION_BLOCKS < current_block_number {
+                        return Some(*id);
+                    }
+                    // Check if transaction is for a future block
+                    if tx_number > current_block_number {
+                        return Some(*id);
+                    }
+                }
+                None
+            })
+            .collect();
+
+        // Remove expired transactions
+        let mut tx_hashes = Vec::new();
+        for id in &expired_txs {
+            // Get transaction hash from id
+            if let Some(tx) = self.all_transactions.txs.get(id) {
+                let tx_hash = *tx.transaction.hash();
+                tx_hashes.push(tx_hash);
+            }
+        }
+        // Now remove transactions by hash
+        for tx_hash in tx_hashes {
+            if let Some(pruned_tx) = self.prune_transaction_by_hash(&tx_hash) {
+                self.metrics.removed_transactions.increment(1);
+                tracing::debug!(
+                    target: "txpool",
+                    hash = ?pruned_tx.hash(),
+                    "Removed expired Kasplex transaction"
+                );
+            }
+        }
+    }
+
+    /// [kasplex]: Helper method to get transaction number from pool transaction
+    #[cfg(feature = "kasplex")]
+    fn get_tx_number_from_pool_tx(&self, tx: &Arc<ValidPoolTransaction<T::Transaction>>) -> Option<u64>
+    where
+        T::Transaction: crate::traits::EthPoolTransaction,
+    {
+        use crate::traits::EthPoolTransaction;
+        // Access number via EthPoolTransaction trait
+        tx.transaction.tx_number()
+    }
+
+    /// [kasplex]: Check if transaction is expired based on transaction number
+    #[cfg(feature = "kasplex")]
+    fn check_kasplex_transaction_expiry(
+        &self,
+        tx: &ValidPoolTransaction<T::Transaction>,
+    ) -> PoolResult<()> {
+        use crate::traits::EthPoolTransaction;
+        use crate::error::InvalidPoolTransactionError;
+        use reth_primitives::{InvalidTransactionError, kasplex_tx_mapping::UNEXECUTED_TX_RETENTION_BLOCKS};
+        use std::any::Any;
+        
+        let current_block_number = self.all_transactions.last_seen_block_number;
+        // Try to get transaction number via EthPoolTransaction trait
+        // Use trait object to avoid requiring trait bound on T::Transaction
+        let tx_number = (&tx.transaction as &dyn Any)
+            .downcast_ref::<crate::EthPooledTransaction>()
+            .and_then(|eth_tx| eth_tx.tx_number());
+        
+        if let Some(tx_number) = tx_number {
+            // Check if transaction is expired
+            if tx_number + UNEXECUTED_TX_RETENTION_BLOCKS < current_block_number {
+                tracing::info!(
+                    target: "txpool",
+                    hash = ?tx.hash(),
+                    tx_number = tx_number,
+                    current = current_block_number,
+                    "Ignore old Kasplex transaction"
+                );
+                return Err(PoolError::new(
+                    *tx.hash(),
+                    PoolErrorKind::InvalidTransaction(
+                        InvalidPoolTransactionError::Consensus(
+                            InvalidTransactionError::TxTypeNotSupported,
+                        ),
+                    ),
+                ));
+            }
+            // Check if transaction is for a future block
+            if tx_number > current_block_number {
+                tracing::info!(
+                    target: "txpool",
+                    hash = ?tx.hash(),
+                    tx_number = tx_number,
+                    current = current_block_number,
+                    "Ignore future block Kasplex transaction"
+                );
+                return Err(PoolError::new(
+                    *tx.hash(),
+                    PoolErrorKind::InvalidTransaction(
+                        InvalidPoolTransactionError::Consensus(
+                            InvalidTransactionError::TxTypeNotSupported,
+                        ),
+                    ),
+                ));
+            }
+        }
+        Ok(())
     }
 
     /// Returns an iterator that yields transactions that are ready to be included in the block with
@@ -474,6 +609,12 @@ impl<T: TransactionOrdering> TxPool<T> {
     ) -> PoolResult<AddedTransaction<T::Transaction>> {
         if self.contains(tx.hash()) {
             return Err(PoolError::new(*tx.hash(), PoolErrorKind::AlreadyImported))
+        }
+
+        // [kasplex]: Ignore old transactions based on transaction number
+        #[cfg(feature = "kasplex")]
+        {
+            self.check_kasplex_transaction_expiry(&tx)?;
         }
 
         // Update sender info with balance and nonce

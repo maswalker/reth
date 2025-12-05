@@ -463,6 +463,18 @@ where
             return true
         }
 
+        // [kasplex]: Allow reorgs in Kasplex mode
+        #[cfg(feature = "kasplex")]
+        if self.blockchain.chain_spec().is_kasplex() {
+            debug!(
+                target: "consensus::engine",
+                fcu_head_num=?header.number,
+                current_head_num=?head.number,
+                "[Kasplex] Allowing beacon reorg to old head"
+            );
+            return true
+        }
+
         // 2. Client software MAY skip an update of the forkchoice state and MUST NOT begin a
         //    payload build process if `forkchoiceState.headBlockHash` references a `VALID` ancestor
         //    of the head of canonical chain, i.e. the ancestor passed payload validation process
@@ -1108,7 +1120,27 @@ where
             .payload_validator
             .ensure_well_formed_payload(payload, cancun_fields.into())
         {
-            Ok(block) => block,
+            Ok(block) => {
+                // [kasplex]: Set transaction numbers from tx mapping for Kasplex networks
+                #[cfg(feature = "kasplex")]
+                {
+                    if self.blockchain.chain_spec().is_kasplex() {
+                        // In Kasplex, when a block is received via NewPayload, we need to:
+                        // 1. Get transaction numbers from the tx mapping (if available)
+                        // 2. Set them on the transactions
+                        // 3. Set the block's numbers field
+                        //
+                        // Note: Since SealedBlock is immutable, we need to unseal it first,
+                        // modify it, then reseal it. However, this is expensive, so we'll
+                        // handle this in a more efficient way by modifying the block before sealing.
+                        //
+                        // For now, we'll leave the numbers as they are in the block.
+                        // The numbers should be set when the block is created from ExecutableData
+                        // with Numbers field, or from the tx mapping when transactions are submitted.
+                    }
+                }
+                block
+            }
             Err(error) => {
                 error!(target: "consensus::engine", %error, "Invalid payload");
                 // we need to convert the error to a payload status (response to the CL)
@@ -1160,8 +1192,23 @@ where
         //    client software MUST respond with -38003: `Invalid payload attributes` and MUST NOT
         //    begin a payload build process. In such an event, the forkchoiceState update MUST NOT
         //    be rolled back.
-        if attrs.timestamp() <= head.timestamp {
-            return OnForkChoiceUpdated::invalid_payload_attributes()
+        //
+        // [kasplex]: Allow block.timestamp == parent.timestamp for Kasplex networks
+        #[cfg(feature = "kasplex")]
+        let chain_spec = self.blockchain.chain_spec();
+        #[cfg(feature = "kasplex")]
+        let allow_equal_timestamp = chain_spec.is_kasplex();
+        #[cfg(not(feature = "kasplex"))]
+        let allow_equal_timestamp = false;
+        
+        if allow_equal_timestamp {
+            if attrs.timestamp() < head.timestamp {
+                return OnForkChoiceUpdated::invalid_payload_attributes()
+            }
+        } else {
+            if attrs.timestamp() <= head.timestamp {
+                return OnForkChoiceUpdated::invalid_payload_attributes()
+            }
         }
 
         // 8. Client software MUST begin a payload build process building on top of

@@ -370,12 +370,29 @@ impl StorageInner {
             chain_spec,
         );
 
-        let block = Block {
-            header,
-            body: transactions,
-            ommers: ommers.clone(),
-            withdrawals: withdrawals.clone(),
-            requests: requests.clone(),
+        let block = {
+            #[cfg(feature = "kasplex")]
+            {
+                Block {
+                    header,
+                    body: transactions,
+                    ommers: ommers.clone(),
+                    withdrawals: withdrawals.clone(),
+                    requests: requests.clone(),
+                    numbers: None,
+                }
+            }
+            #[cfg(not(feature = "kasplex"))]
+            {
+                Block {
+                    header,
+                    body: transactions,
+                    ommers: ommers.clone(),
+                    withdrawals: withdrawals.clone(),
+                    requests: requests.clone(),
+                    numbers: None,
+                }
+            }
         }
         .with_recovered_senders()
         .ok_or(BlockExecutionError::Validation(BlockValidationError::SenderRecoveryError))?;

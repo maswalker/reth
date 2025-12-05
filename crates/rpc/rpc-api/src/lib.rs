@@ -24,6 +24,10 @@ mod eth_filter;
 mod eth_pubsub;
 mod ganache;
 mod hardhat;
+#[cfg(feature = "kasplex")]
+mod kasplex;
+#[cfg(feature = "kasplex")]
+mod kasplex_auth;
 mod mev;
 mod net;
 mod optimism;
@@ -58,6 +62,11 @@ pub mod servers {
         validation::BlockSubmissionValidationApiServer,
         web3::Web3ApiServer,
     };
+    #[cfg(feature = "kasplex")]
+    pub use crate::{
+        kasplex::KasplexApiServer,
+        kasplex_auth::KasplexAuthApiServer,
+    };
 }
 
 /// re-export of all client traits
@@ -85,5 +94,10 @@ pub mod clients {
         txpool::TxPoolApiClient,
         validation::BlockSubmissionValidationApiClient,
         web3::Web3ApiClient,
+    };
+    #[cfg(feature = "kasplex")]
+    pub use crate::{
+        kasplex::KasplexApiClient,
+        kasplex_auth::KasplexAuthApiClient,
     };
 }

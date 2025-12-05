@@ -102,6 +102,8 @@ impl_to_rpc_result!(PayloadError);
 impl_to_rpc_result!(reth_errors::RethError);
 impl_to_rpc_result!(reth_errors::ProviderError);
 impl_to_rpc_result!(reth_network_api::NetworkError);
+#[cfg(feature = "kasplex")]
+impl_to_rpc_result!(crate::eth::error::EthApiError);
 
 /// Constructs an invalid params JSON-RPC error.
 pub(crate) fn invalid_params_rpc_err(

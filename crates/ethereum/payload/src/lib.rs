@@ -229,7 +229,31 @@ where
             requests_root,
         };
 
-        let block = Block { header, body: vec![], ommers: vec![], withdrawals, requests };
+        let block = {
+            #[cfg(feature = "kasplex")]
+            {
+                Block {
+                    header,
+                    body: vec![],
+                    ommers: vec![],
+                    withdrawals,
+                    requests,
+                    numbers: None,
+                }
+            }
+            #[cfg(not(feature = "kasplex"))]
+            {
+                Block {
+                    header,
+                    body: vec![],
+                    ommers: vec![],
+                    withdrawals,
+                    requests,
+                    numbers: None,
+                }
+            }
+        };
+
         let sealed_block = block.seal_slow();
 
         Ok(EthBuiltPayload::new(attributes.payload_id(), sealed_block, U256::ZERO))
@@ -512,9 +536,64 @@ where
         requests_root,
     };
 
-    // seal the block
-    let block = Block { header, body: executed_txs, ommers: vec![], withdrawals, requests };
+    // [kasplex]: Set transaction numbers for Kasplex networks
+    #[cfg(feature = "kasplex")]
+    let mut numbers = if chain_spec.is_kasplex() {
+        use reth_primitives::kasplex_tx_mapping::TxMapping;
+        let tx_mapping = TxMapping::default();
+        let mut block_numbers = Vec::with_capacity(executed_txs.len());
+        
+        for tx in &executed_txs {
+            // If transaction has a number, use it
+            // Otherwise, try to get from tx mapping
+            let tx_number = if let Some(number) = tx.number {
+                number
+            } else {
+                // Try to get from tx mapping
+                let tx_hash = tx.hash();
+                let mapped_number = tx_mapping.get_tx_number(tx_hash);
+                if mapped_number != 0 {
+                    mapped_number
+                } else {
+                    // If not found in mapping, use current block number
+                    // This handles the case where transactions are submitted directly
+                    block_number
+                }
+            };
+            block_numbers.push(tx_number);
+        }
+        
+        Some(block_numbers)
+    } else {
+        None
+    };
 
+    // seal the block
+    let block = {
+        #[cfg(feature = "kasplex")]
+        {
+            Block {
+                header,
+                body: executed_txs,
+                ommers: vec![],
+                withdrawals,
+                requests,
+                numbers,
+            }
+        }
+        #[cfg(not(feature = "kasplex"))]
+        {
+            Block {
+                header,
+                body: executed_txs,
+                ommers: vec![],
+                withdrawals,
+                requests,
+                numbers: None,
+            }
+        }
+    };
+    
     let sealed_block = block.seal_slow();
     debug!(target: "payload_builder", ?sealed_block, "sealed built block");
 

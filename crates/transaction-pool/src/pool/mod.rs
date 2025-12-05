@@ -512,6 +512,31 @@ where
         origin: TransactionOrigin,
         transactions: impl IntoIterator<Item = TransactionValidationOutcome<T::Transaction>>,
     ) -> Vec<PoolResult<TxHash>> {
+        // [kasplex]: Disable P2P transaction submission for Kasplex networks
+        #[cfg(feature = "kasplex")]
+        {
+            if matches!(origin, TransactionOrigin::External) {
+                use crate::error::InvalidPoolTransactionError;
+                use reth_primitives::InvalidTransactionError;
+                
+                // Reject all external transactions when kasplex feature is enabled
+                return transactions
+                    .into_iter()
+                    .map(|tx| {
+                        let hash = tx.tx_hash();
+                        Err(PoolError::new(
+                            hash,
+                            PoolErrorKind::InvalidTransaction(
+                                InvalidPoolTransactionError::Consensus(
+                                    InvalidTransactionError::TxTypeNotSupported,
+                                ),
+                            ),
+                        ))
+                    })
+                    .collect();
+            }
+        }
+        
         let mut added =
             transactions.into_iter().map(|tx| self.add_transaction(origin, tx)).collect::<Vec<_>>();
 

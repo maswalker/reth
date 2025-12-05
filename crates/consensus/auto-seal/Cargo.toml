@@ -38,3 +38,4 @@ tracing.workspace = true
 [features]
 # Included solely to ignore certain tests.
 optimism = []
+kasplex = ["reth-primitives/kasplex"]

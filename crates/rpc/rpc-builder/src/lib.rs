@@ -781,7 +781,7 @@ where
     /// If called outside of the tokio runtime. See also [`Self::eth_api`]
     pub fn register_eth(&mut self) -> &mut Self {
         let eth_api = self.eth_api();
-        self.modules.insert(RethRpcModule::Eth, eth_api.into_rpc().into());
+        self.modules.insert(RethRpcModule::Eth, reth_rpc_api::EthApiServer::into_rpc(eth_api).into());
         self
     }
 
@@ -944,7 +944,7 @@ where
                         .into(),
                         RethRpcModule::Eth => {
                             // merge all eth handlers
-                            let mut module = eth_api.clone().into_rpc();
+                            let mut module = reth_rpc_api::EthApiServer::into_rpc(eth_api.clone());
                             module.merge(eth_filter.clone().into_rpc()).expect("No conflicts");
                             module.merge(eth_pubsub.clone().into_rpc()).expect("No conflicts");
 
@@ -982,6 +982,14 @@ where
                             EthBundle::new(eth_api.clone(), self.blocking_pool_guard.clone())
                                 .into_rpc()
                                 .into()
+                        }
+                        #[cfg(feature = "kasplex")]
+                        RethRpcModule::Kasplex => {
+                            reth_rpc_api::KasplexApiServer::into_rpc(eth_api.clone()).into()
+                        }
+                        #[cfg(feature = "kasplex")]
+                        RethRpcModule::KasplexAuth => {
+                            reth_rpc_api::KasplexAuthApiServer::into_rpc(eth_api.clone()).into()
                         }
                     })
                     .clone()

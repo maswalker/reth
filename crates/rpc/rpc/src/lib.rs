@@ -36,6 +36,10 @@ mod admin;
 mod debug;
 mod engine;
 pub mod eth;
+#[cfg(feature = "kasplex")]
+mod kasplex;
+#[cfg(feature = "kasplex")]
+mod kasplex_auth;
 mod net;
 mod otterscan;
 mod reth;

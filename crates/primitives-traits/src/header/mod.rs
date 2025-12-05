@@ -249,6 +249,8 @@ impl Header {
     /// Calculate base fee for next block according to the EIP-1559 spec.
     ///
     /// Returns a `None` if no base fee is set, no EIP-1559 support
+    ///
+    /// [kasplex]: For Kasplex chains, the validation function will use a fixed base fee
     pub fn next_block_base_fee(&self, base_fee_params: BaseFeeParams) -> Option<u64> {
         Some(calc_next_block_base_fee(
             self.gas_used as u128,

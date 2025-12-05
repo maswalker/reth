@@ -17,6 +17,12 @@ pub use error::{EngineObjectValidationError, PayloadBuilderError, VersionSpecifi
 mod traits;
 pub use traits::{BuiltPayload, PayloadAttributes, PayloadBuilderAttributes};
 
+/// [kasplex]: Kasplex-specific payload types
+#[cfg(feature = "kasplex")]
+mod kasplex;
+#[cfg(feature = "kasplex")]
+pub use kasplex::{BlockMetadata, KasplexPayloadAttributes};
+
 mod payload;
 pub use payload::PayloadOrAttributes;
 

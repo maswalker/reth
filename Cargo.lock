@@ -7664,12 +7664,14 @@ dependencies = [
 name = "reth-payload-primitives"
 version = "1.0.0-rc.2"
 dependencies = [
+ "alloy-rlp",
  "reth-chainspec",
  "reth-errors",
  "reth-primitives",
  "reth-rpc-types",
  "reth-transaction-pool",
  "serde",
+ "sha2 0.10.8",
  "thiserror",
  "tokio",
 ]
@@ -7705,6 +7707,7 @@ dependencies = [
  "modular-bitfield",
  "nybbles",
  "once_cell",
+ "parking_lot 0.12.3",
  "pprof",
  "proptest",
  "proptest-derive",
@@ -7928,6 +7931,7 @@ dependencies = [
  "jsonrpsee",
  "reth-engine-primitives",
  "reth-network-peers",
+ "reth-payload-primitives",
  "reth-primitives",
  "reth-rpc-types",
  "serde",

@@ -171,9 +171,22 @@ where
     /// Replays a block and returns the trace of each transaction.
     pub async fn debug_trace_block(
         &self,
-        block_id: BlockId,
+        mut block_id: BlockId,
         opts: GethDebugTracingOptions,
     ) -> EthResult<Vec<TraceResult>> {
+        // [kasplex]: For Kasplex chains, use latest block number for pending state
+        #[cfg(feature = "kasplex")]
+        {
+            let chain_spec = self.inner.provider.chain_spec();
+            if chain_spec.is_kasplex() {
+                if let BlockId::Number(BlockNumberOrTag::Pending) = block_id {
+                    if let Ok(Some(header)) = self.inner.provider.latest_header() {
+                        block_id = BlockId::Number(header.number.into());
+                    }
+                }
+            }
+        }
+        
         let block_hash = self
             .inner
             .provider
@@ -268,7 +281,20 @@ where
         block_id: Option<BlockId>,
         opts: GethDebugTracingCallOptions,
     ) -> EthResult<GethTrace> {
-        let at = block_id.unwrap_or_default();
+        // [kasplex]: For Kasplex chains, use latest block number for pending state
+        let at = block_id.unwrap_or_else(|| {
+            #[cfg(feature = "kasplex")]
+            {
+                let chain_spec = self.inner.provider.chain_spec();
+                if chain_spec.is_kasplex() {
+                    // Use latest block number instead of pending
+                    if let Ok(Some(header)) = self.inner.provider.latest_header() {
+                        return BlockId::Number(header.number.into());
+                    }
+                }
+            }
+            BlockId::default()
+        });
         let GethDebugTracingCallOptions { tracing_options, state_overrides, block_overrides } =
             opts;
         let overrides = EvmOverrides::new(state_overrides, block_overrides.map(Box::new));

@@ -97,3 +97,7 @@ optimism = [
     "dep:reth-evm-optimism",
     "reth-evm-optimism/optimism",
 ]
+kasplex = [
+    "reth-primitives/kasplex",
+    "reth-rpc-api/kasplex",
+]

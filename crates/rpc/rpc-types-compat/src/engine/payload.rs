@@ -69,6 +69,8 @@ pub fn try_payload_v1_to_block(payload: ExecutionPayloadV1) -> Result<Block, Pay
         ommers: Default::default(),
         withdrawals: None,
         requests: None,
+        #[cfg(feature = "kasplex")]
+        numbers: None,
     })
 }
 

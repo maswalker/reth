@@ -45,6 +45,7 @@ default = ["std"]
 optimism = [
     "reth-ethereum-forks/optimism"
 ]
+kasplex = []
 std = []
 arbitrary = [
     "alloy-chains/arbitrary"

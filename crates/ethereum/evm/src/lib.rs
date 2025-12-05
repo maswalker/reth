@@ -25,6 +25,10 @@ pub mod dao_fork;
 /// [EIP-6110](https://eips.ethereum.org/EIPS/eip-6110) handling.
 pub mod eip6110;
 
+/// [kasplex]: Kasplex-specific EVM execution logic
+#[cfg(feature = "kasplex")]
+pub mod kasplex;
+
 /// Ethereum-related EVM configuration.
 #[derive(Debug, Clone, Copy, Default)]
 #[non_exhaustive]

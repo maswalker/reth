@@ -19,10 +19,19 @@ use reth_chainspec::{BASE_MAINNET, BASE_SEPOLIA, OP_MAINNET, OP_SEPOLIA};
 #[cfg(not(feature = "optimism"))]
 use reth_chainspec::{GOERLI, HOLESKY, MAINNET, SEPOLIA};
 
-#[cfg(feature = "optimism")]
+#[cfg(feature = "kasplex")]
+use reth_chainspec::{KASPLEX_DEVNET, KASPLEX_INTERNAL_L2, KASPLEX_MAINNET, KASPLEX_TESTNET};
+
+#[cfg(all(feature = "optimism", feature = "kasplex"))]
+/// Chains supported by op-reth with kasplex. First value should be used as the default.
+pub const SUPPORTED_CHAINS: &[&str] = &["optimism", "optimism-sepolia", "base", "base-sepolia", "kasplex-mainnet", "kasplex-internal-l2", "kasplex-testnet", "kasplex-devnet"];
+#[cfg(all(feature = "optimism", not(feature = "kasplex")))]
 /// Chains supported by op-reth. First value should be used as the default.
 pub const SUPPORTED_CHAINS: &[&str] = &["optimism", "optimism-sepolia", "base", "base-sepolia"];
-#[cfg(not(feature = "optimism"))]
+#[cfg(all(not(feature = "optimism"), feature = "kasplex"))]
+/// Chains supported by reth with kasplex. First value should be used as the default.
+pub const SUPPORTED_CHAINS: &[&str] = &["mainnet", "sepolia", "goerli", "holesky", "dev", "kasplex-mainnet", "kasplex-internal-l2", "kasplex-testnet", "kasplex-devnet"];
+#[cfg(all(not(feature = "optimism"), not(feature = "kasplex")))]
 /// Chains supported by reth. First value should be used as the default.
 pub const SUPPORTED_CHAINS: &[&str] = &["mainnet", "sepolia", "goerli", "holesky", "dev"];
 
@@ -54,6 +63,14 @@ pub fn chain_spec_value_parser(s: &str) -> eyre::Result<Arc<ChainSpec>, eyre::Er
         "base" => BASE_MAINNET.clone(),
         #[cfg(feature = "optimism")]
         "base_sepolia" | "base-sepolia" => BASE_SEPOLIA.clone(),
+        #[cfg(feature = "kasplex")]
+        "kasplex-mainnet" => KASPLEX_MAINNET.clone(),
+        #[cfg(feature = "kasplex")]
+        "kasplex-internal-l2" => KASPLEX_INTERNAL_L2.clone(),
+        #[cfg(feature = "kasplex")]
+        "kasplex-testnet" => KASPLEX_TESTNET.clone(),
+        #[cfg(feature = "kasplex")]
+        "kasplex-devnet" => KASPLEX_DEVNET.clone(),
         _ => {
             let raw = fs::read_to_string(PathBuf::from(shellexpand::full(s)?.into_owned()))?;
             serde_json::from_str(&raw)?
@@ -90,6 +107,14 @@ pub fn genesis_value_parser(s: &str) -> eyre::Result<Arc<ChainSpec>, eyre::Error
         "base" => BASE_MAINNET.clone(),
         #[cfg(feature = "optimism")]
         "base_sepolia" | "base-sepolia" => BASE_SEPOLIA.clone(),
+        #[cfg(feature = "kasplex")]
+        "kasplex-mainnet" => KASPLEX_MAINNET.clone(),
+        #[cfg(feature = "kasplex")]
+        "kasplex-internal-l2" => KASPLEX_INTERNAL_L2.clone(),
+        #[cfg(feature = "kasplex")]
+        "kasplex-testnet" => KASPLEX_TESTNET.clone(),
+        #[cfg(feature = "kasplex")]
+        "kasplex-devnet" => KASPLEX_DEVNET.clone(),
         _ => {
             // try to read json from path first
             let raw = match fs::read_to_string(PathBuf::from(shellexpand::full(s)?.into_owned())) {

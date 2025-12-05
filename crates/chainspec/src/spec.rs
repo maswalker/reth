@@ -468,6 +468,184 @@ pub static BASE_MAINNET: Lazy<Arc<ChainSpec>> = Lazy::new(|| {
     .into()
 });
 
+/// [kasplex]: Create Kasplex Genesis configuration
+#[cfg(feature = "kasplex")]
+fn kasplex_genesis(chain_id: u64) -> Genesis {
+    use alloy_genesis::ChainConfig;
+    
+    let config = ChainConfig {
+        chain_id,
+        homestead_block: Some(0),
+        eip150_block: Some(0),
+        eip155_block: Some(0),
+        eip158_block: Some(0),
+        byzantium_block: Some(0),
+        constantinople_block: Some(0),
+        petersburg_block: Some(0),
+        istanbul_block: Some(0),
+        berlin_block: Some(0),
+        london_block: Some(0),
+        shanghai_time: Some(0),
+        cancun_time: Some(0),
+        terminal_total_difficulty: Some(U256::ZERO),
+        terminal_total_difficulty_passed: true,
+        ..Default::default()
+    };
+    
+    Genesis {
+        config,
+        nonce: 0,
+        timestamp: 0,
+        extra_data: Default::default(),
+        gas_limit: 15_000_000,
+        difficulty: U256::ZERO,
+        mix_hash: B256::ZERO,
+        coinbase: Address::ZERO,
+        alloc: BTreeMap::new(),
+        base_fee_per_gas: Some(2_000_000_000_000u128), // 2 gwei
+        ..Default::default()
+    }
+}
+
+/// The Kasplex Mainnet spec
+#[cfg(feature = "kasplex")]
+pub static KASPLEX_MAINNET: Lazy<Arc<ChainSpec>> = Lazy::new(|| {
+    ChainSpec {
+        chain: Chain::from(202555),
+        genesis: serde_json::from_str(include_str!("../res/genesis/kasplex-mainnet.json"))
+            .expect("Can't deserialize Kasplex Mainnet genesis json"),
+        genesis_hash: Some(b256!(
+            "f6f413e82783b38ca837ed9408652f8c11a330ae32dc7cdd2f45a0f65366c67d"
+        )),
+        paris_block_and_final_difficulty: Some((0, U256::from(0))),
+        hardforks: BTreeMap::from([
+            (Hardfork::Frontier, ForkCondition::Block(0)),
+            (Hardfork::Homestead, ForkCondition::Block(0)),
+            (Hardfork::Dao, ForkCondition::Block(0)),
+            (Hardfork::Tangerine, ForkCondition::Block(0)),
+            (Hardfork::SpuriousDragon, ForkCondition::Block(0)),
+            (Hardfork::Byzantium, ForkCondition::Block(0)),
+            (Hardfork::Constantinople, ForkCondition::Block(0)),
+            (Hardfork::Petersburg, ForkCondition::Block(0)),
+            (Hardfork::Istanbul, ForkCondition::Block(0)),
+            (Hardfork::Berlin, ForkCondition::Block(0)),
+            (Hardfork::London, ForkCondition::Block(0)),
+            (
+                Hardfork::Paris,
+                ForkCondition::TTD { fork_block: Some(0), total_difficulty: U256::from(0) },
+            ),
+            (Hardfork::Shanghai, ForkCondition::Timestamp(0)),
+            (Hardfork::Cancun, ForkCondition::Timestamp(0)),
+        ]),
+        base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
+        deposit_contract: None,
+        prune_delete_limit: 3500,
+    }
+    .into()
+});
+
+/// The Kasplex Internal L2 spec
+#[cfg(feature = "kasplex")]
+pub static KASPLEX_INTERNAL_L2: Lazy<Arc<ChainSpec>> = Lazy::new(|| {
+    ChainSpec {
+        chain: Chain::from(168001),
+        genesis: kasplex_genesis(168001),
+        genesis_hash: None,
+        paris_block_and_final_difficulty: Some((0, U256::from(0))),
+        hardforks: BTreeMap::from([
+            (Hardfork::Frontier, ForkCondition::Block(0)),
+            (Hardfork::Homestead, ForkCondition::Block(0)),
+            (Hardfork::Dao, ForkCondition::Block(0)),
+            (Hardfork::Tangerine, ForkCondition::Block(0)),
+            (Hardfork::SpuriousDragon, ForkCondition::Block(0)),
+            (Hardfork::Byzantium, ForkCondition::Block(0)),
+            (Hardfork::Constantinople, ForkCondition::Block(0)),
+            (Hardfork::Petersburg, ForkCondition::Block(0)),
+            (Hardfork::Istanbul, ForkCondition::Block(0)),
+            (Hardfork::Berlin, ForkCondition::Block(0)),
+            (Hardfork::London, ForkCondition::Block(0)),
+            (
+                Hardfork::Paris,
+                ForkCondition::TTD { fork_block: Some(0), total_difficulty: U256::from(0) },
+            ),
+            (Hardfork::Shanghai, ForkCondition::Timestamp(0)),
+            (Hardfork::Cancun, ForkCondition::Timestamp(0)),
+        ]),
+        base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
+        deposit_contract: None,
+        prune_delete_limit: 3500,
+    }
+    .into()
+});
+
+/// The Kasplex Testnet spec
+#[cfg(feature = "kasplex")]
+pub static KASPLEX_TESTNET: Lazy<Arc<ChainSpec>> = Lazy::new(|| {
+    ChainSpec {
+        chain: Chain::from(168002),
+        genesis: kasplex_genesis(168002),
+        genesis_hash: None,
+        paris_block_and_final_difficulty: Some((0, U256::from(0))),
+        hardforks: BTreeMap::from([
+            (Hardfork::Frontier, ForkCondition::Block(0)),
+            (Hardfork::Homestead, ForkCondition::Block(0)),
+            (Hardfork::Dao, ForkCondition::Block(0)),
+            (Hardfork::Tangerine, ForkCondition::Block(0)),
+            (Hardfork::SpuriousDragon, ForkCondition::Block(0)),
+            (Hardfork::Byzantium, ForkCondition::Block(0)),
+            (Hardfork::Constantinople, ForkCondition::Block(0)),
+            (Hardfork::Petersburg, ForkCondition::Block(0)),
+            (Hardfork::Istanbul, ForkCondition::Block(0)),
+            (Hardfork::Berlin, ForkCondition::Block(0)),
+            (Hardfork::London, ForkCondition::Block(0)),
+            (
+                Hardfork::Paris,
+                ForkCondition::TTD { fork_block: Some(0), total_difficulty: U256::from(0) },
+            ),
+            (Hardfork::Shanghai, ForkCondition::Timestamp(0)),
+            (Hardfork::Cancun, ForkCondition::Timestamp(0)),
+        ]),
+        base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
+        deposit_contract: None,
+        prune_delete_limit: 3500,
+    }
+    .into()
+});
+
+/// The Kasplex Devnet spec
+#[cfg(feature = "kasplex")]
+pub static KASPLEX_DEVNET: Lazy<Arc<ChainSpec>> = Lazy::new(|| {
+    ChainSpec {
+        chain: Chain::from(167012),
+        genesis: kasplex_genesis(167012),
+        genesis_hash: None,
+        paris_block_and_final_difficulty: Some((0, U256::from(0))),
+        hardforks: BTreeMap::from([
+            (Hardfork::Frontier, ForkCondition::Block(0)),
+            (Hardfork::Homestead, ForkCondition::Block(0)),
+            (Hardfork::Dao, ForkCondition::Block(0)),
+            (Hardfork::Tangerine, ForkCondition::Block(0)),
+            (Hardfork::SpuriousDragon, ForkCondition::Block(0)),
+            (Hardfork::Byzantium, ForkCondition::Block(0)),
+            (Hardfork::Constantinople, ForkCondition::Block(0)),
+            (Hardfork::Petersburg, ForkCondition::Block(0)),
+            (Hardfork::Istanbul, ForkCondition::Block(0)),
+            (Hardfork::Berlin, ForkCondition::Block(0)),
+            (Hardfork::London, ForkCondition::Block(0)),
+            (
+                Hardfork::Paris,
+                ForkCondition::TTD { fork_block: Some(0), total_difficulty: U256::from(0) },
+            ),
+            (Hardfork::Shanghai, ForkCondition::Timestamp(0)),
+            (Hardfork::Cancun, ForkCondition::Timestamp(0)),
+        ]),
+        base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
+        deposit_contract: None,
+        prune_delete_limit: 3500,
+    }
+    .into()
+});
+
 /// A wrapper around [`BaseFeeParams`] that allows for specifying constant or dynamic EIP-1559
 /// parameters based on the active [Hardfork].
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -598,6 +776,24 @@ impl ChainSpec {
     #[inline]
     pub fn is_optimism_mainnet(&self) -> bool {
         self.chain == Chain::optimism_mainnet()
+    }
+
+    /// Returns `true` if this is a Kasplex chain.
+    #[inline]
+    #[cfg(feature = "kasplex")]
+    pub fn is_kasplex(&self) -> bool {
+        let id = self.chain.id();
+        id == 202555 || // Kasplex Mainnet
+        id == 168001 || // Kasplex Internal L2
+        id == 168002 || // Kasplex Testnet
+        id == 167012    // Kasplex Devnet
+    }
+
+    /// Returns `true` if this is a Kasplex chain.
+    #[inline]
+    #[cfg(not(feature = "kasplex"))]
+    pub const fn is_kasplex(&self) -> bool {
+        false
     }
 
     /// Get the genesis block specification.

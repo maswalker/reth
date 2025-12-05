@@ -7,6 +7,8 @@ use reth_rpc_types::{
     engine::{OptimismPayloadAttributes, PayloadAttributes as EthPayloadAttributes, PayloadId},
     Withdrawal,
 };
+#[cfg(feature = "kasplex")]
+use crate::kasplex::KasplexPayloadAttributes;
 
 use crate::{
     validate_version_specific_fields, EngineApiMessageVersion, EngineObjectValidationError,

@@ -195,6 +195,22 @@ pub fn validate_against_parent_eip1559_base_fee(
     if chain_spec.fork(Hardfork::London).active_at_block(header.number) {
         let base_fee = header.base_fee_per_gas.ok_or(ConsensusError::BaseFeeMissing)?;
 
+        // [kasplex]: For Kasplex chains, use fixed base fee of 2000 GWei
+        #[cfg(feature = "kasplex")]
+        let expected_base_fee = if chain_spec.is_kasplex() {
+            // Kasplex uses a fixed base fee of 2000 GWei
+            2_000_000_000_000u64
+        } else if chain_spec.fork(Hardfork::London).transitions_at_block(header.number) {
+            reth_primitives::constants::EIP1559_INITIAL_BASE_FEE
+        } else {
+            // This BaseFeeMissing will not happen as previous blocks are checked to have
+            // them.
+            parent
+                .next_block_base_fee(chain_spec.base_fee_params_at_timestamp(header.timestamp))
+                .ok_or(ConsensusError::BaseFeeMissing)?
+        };
+
+        #[cfg(not(feature = "kasplex"))]
         let expected_base_fee =
             if chain_spec.fork(Hardfork::London).transitions_at_block(header.number) {
                 reth_primitives::constants::EIP1559_INITIAL_BASE_FEE
@@ -205,6 +221,7 @@ pub fn validate_against_parent_eip1559_base_fee(
                     .next_block_base_fee(chain_spec.base_fee_params_at_timestamp(header.timestamp))
                     .ok_or(ConsensusError::BaseFeeMissing)?
             };
+
         if expected_base_fee != base_fee {
             return Err(ConsensusError::BaseFeeDiff(GotExpected {
                 expected: expected_base_fee,

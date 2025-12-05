@@ -234,6 +234,19 @@ where
             )
         }
 
+        // [kasplex]: Check minimum base fee for Kasplex networks
+        #[cfg(feature = "kasplex")]
+        if self.chain_spec.is_kasplex() {
+            // The minimum base fee defined in KasplexL2 (2000 GWei)
+            const MIN_L2_BASE_FEE: u128 = 2000000000000u128;
+            if transaction.max_fee_per_gas() < MIN_L2_BASE_FEE {
+                return TransactionValidationOutcome::Invalid(
+                    transaction,
+                    InvalidPoolTransactionError::Underpriced,
+                )
+            }
+        }
+
         // Drop non-local transactions with a fee lower than the configured fee for acceptance into
         // the pool.
         if !self.local_transactions_config.is_local(origin, transaction.sender()) &&

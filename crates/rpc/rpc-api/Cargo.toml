@@ -17,6 +17,7 @@ reth-primitives.workspace = true
 reth-rpc-types.workspace = true
 reth-engine-primitives.workspace = true
 reth-network-peers.workspace = true
+reth-payload-primitives.workspace = true
 
 # misc
 alloy-dyn-abi = { workspace = true, features = ["eip712"] }
@@ -28,3 +29,4 @@ serde_json.workspace = true
 
 [features]
 client = ["jsonrpsee/client", "jsonrpsee/async-client"]
+kasplex = ["reth-primitives/kasplex", "reth-payload-primitives/kasplex"]

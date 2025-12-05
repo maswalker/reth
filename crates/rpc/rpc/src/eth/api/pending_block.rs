@@ -289,7 +289,15 @@ impl PendingBlockEnv {
         };
 
         // seal the block
-        let block = Block { header, body: executed_txs, ommers: vec![], withdrawals, requests };
+        let block = Block {
+            header,
+            body: executed_txs,
+            ommers: vec![],
+            withdrawals,
+            requests,
+            #[cfg(feature = "kasplex")]
+            numbers: None,
+        };
         Ok(SealedBlockWithSenders { block: block.seal_slow(), senders })
     }
 }

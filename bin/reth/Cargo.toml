@@ -151,6 +151,13 @@ optimism = [
     "reth-node-core/optimism",
 ]
 
+kasplex = [
+    "reth-node-core/kasplex",
+    "reth-provider/kasplex",
+    "reth-rpc-api/kasplex",
+    "reth-rpc-builder/kasplex",
+]
+
 # no-op feature flag for switching between the `optimism` and default functionality in CI matrices
 ethereum = []
 

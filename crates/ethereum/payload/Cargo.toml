@@ -28,3 +28,6 @@ revm.workspace = true
 
 # misc
 tracing.workspace = true
+
+[features]
+kasplex = ["reth-primitives/kasplex"]

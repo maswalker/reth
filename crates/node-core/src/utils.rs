@@ -121,6 +121,8 @@ where
         ommers: block.ommers,
         withdrawals: block.withdrawals,
         requests: block.requests,
+        #[cfg(feature = "kasplex")]
+        numbers: None, // BlockBody doesn't have numbers field, will be set later if needed
     };
 
     validate_block_pre_execution(&block, &chain_spec)?;

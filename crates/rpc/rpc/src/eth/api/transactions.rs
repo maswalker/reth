@@ -856,7 +856,38 @@ where
             client.forward_raw_transaction(&tx).await?;
         }
 
-        let recovered = recover_raw_transaction(tx)?;
+        let mut recovered = recover_raw_transaction(tx)?;
+        
+        // [kasplex]: Set transaction number for Kasplex networks
+        #[cfg(feature = "kasplex")]
+        {
+            let chain_spec = self.provider().chain_spec();
+            if chain_spec.is_kasplex() {
+                // Get current block number and set transaction number
+                if let Ok(Some(header)) = self.provider().latest_header() {
+                    let tx_number = header.number + 1;
+                    // Convert to TransactionSignedEcRecovered to modify number field
+                    let mut tx_recovered = recovered.into_ecrecovered_transaction();
+                    // Set number on the signed transaction
+                    let signer = tx_recovered.signer();
+                    let mut signed_tx = tx_recovered.into_signed();
+                    signed_tx.number = Some(tx_number);
+                    let tx_hash = signed_tx.hash();
+                    tx_recovered = reth_primitives::TransactionSignedEcRecovered::from_signed_transaction(signed_tx, signer);
+                    // Convert back to PooledTransactionsElementEcRecovered
+                    recovered = reth_primitives::PooledTransactionsElementEcRecovered::try_from(tx_recovered)
+                        .map_err(|_| EthApiError::TransactionConversionError)?;
+                    
+                    // Set transaction mapping: store tx hash -> number mapping
+                    use reth_primitives::kasplex_tx_mapping::TxMapping;
+                    let tx_mapping = TxMapping::default();
+                    let mut mapping = std::collections::HashMap::new();
+                    mapping.insert(tx_hash, tx_number);
+                    tx_mapping.set_mapping(mapping);
+                }
+            }
+        }
+        
         let pool_transaction = <Pool::Transaction>::from_recovered_pooled_transaction(recovered);
 
         // submit the transaction to the pool with a `Local` origin
@@ -1046,8 +1077,33 @@ where
 
         let signed_tx = self.sign_request(&from, transaction)?;
 
-        let recovered =
+        let mut recovered =
             signed_tx.into_ecrecovered().ok_or(EthApiError::InvalidTransactionSignature)?;
+
+        // [kasplex]: Set transaction number for Kasplex networks
+        #[cfg(feature = "kasplex")]
+        {
+            let chain_spec = self.provider().chain_spec();
+            if chain_spec.is_kasplex() {
+                // Get current block number and set transaction number
+                if let Ok(Some(header)) = self.provider().latest_header() {
+                    let tx_number = header.number + 1;
+                    // Set number on the signed transaction
+                    let signer = recovered.signer();
+                    let mut signed_tx = recovered.into_signed();
+                    signed_tx.number = Some(tx_number);
+                    let tx_hash = signed_tx.hash();
+                    recovered = reth_primitives::TransactionSignedEcRecovered::from_signed_transaction(signed_tx, signer);
+                    
+                    // Set transaction mapping: store tx hash -> number mapping
+                    use reth_primitives::kasplex_tx_mapping::TxMapping;
+                    let tx_mapping = TxMapping::default();
+                    let mut mapping = std::collections::HashMap::new();
+                    mapping.insert(tx_hash, tx_number);
+                    tx_mapping.set_mapping(mapping);
+                }
+            }
+        }
 
         let pool_transaction = match recovered.try_into() {
             Ok(converted) => <Pool::Transaction>::from_recovered_pooled_transaction(converted),

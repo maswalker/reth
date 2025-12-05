@@ -79,3 +79,8 @@ optimism = [
     "reth-blockchain-tree/optimism",
     "reth-rpc/optimism",
 ]
+
+kasplex = [
+    "reth-primitives/kasplex",
+    "reth-payload-primitives/kasplex",
+]

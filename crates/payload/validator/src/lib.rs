@@ -110,8 +110,41 @@ impl ExecutionPayloadValidator {
         let expected_hash = payload.block_hash();
 
         // First parse the block
-        let sealed_block =
-            try_into_block(payload, cancun_fields.parent_beacon_block_root())?.seal_slow();
+        let mut block = try_into_block(payload, cancun_fields.parent_beacon_block_root())?;
+        
+        // [kasplex]: For Kasplex networks, set transaction numbers from block.numbers if available
+        #[cfg(feature = "kasplex")]
+        {
+            if self.chain_spec().is_kasplex() {
+                // In Kasplex, when a block is received via NewPayload with Numbers field,
+                // we need to set the transaction numbers from the block.numbers field.
+                // If block.numbers is available and matches the transaction count, use it.
+                if let Some(ref block_numbers) = block.numbers {
+                    if block_numbers.len() == block.body.len() {
+                        for (tx, number) in block.body.iter_mut().zip(block_numbers.iter()) {
+                            #[cfg(feature = "kasplex")]
+                            {
+                                // Set transaction number if not already set
+                                if tx.number.is_none() {
+                                    tx.number = Some(*number);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // If block.numbers is not available, collect numbers from transactions
+                    // and set block.numbers field
+                    let numbers: Vec<u64> = block.body.iter()
+                        .filter_map(|tx| tx.number)
+                        .collect();
+                    if !numbers.is_empty() && numbers.len() == block.body.len() {
+                        block.numbers = Some(numbers);
+                    }
+                }
+            }
+        }
+        
+        let sealed_block = block.seal_slow();
 
         // Ensure the hash included in the payload matches the block hash
         if expected_hash != sealed_block.hash() {

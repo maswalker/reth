@@ -866,6 +866,10 @@ pub trait EthPoolTransaction: PoolTransaction {
         blob: &BlobTransactionSidecar,
         settings: &KzgSettings,
     ) -> Result<(), BlobTransactionValidationError>;
+
+    /// [kasplex]: Returns the transaction submission block number if available
+    #[cfg(feature = "kasplex")]
+    fn tx_number(&self) -> Option<u64>;
 }
 
 /// The default [`PoolTransaction`] for the [Pool](crate::Pool) for Ethereum.
@@ -1108,6 +1112,11 @@ impl EthPoolTransaction for EthPooledTransaction {
             Transaction::Eip4844(tx) => tx.blob_versioned_hashes.len(),
             _ => 0,
         }
+    }
+
+    #[cfg(feature = "kasplex")]
+    fn tx_number(&self) -> Option<u64> {
+        self.transaction.number
     }
 
     fn validate_blob(
