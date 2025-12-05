@@ -13,7 +13,8 @@ use reth_consensus::{Consensus, ConsensusError, PostExecutionInput};
 use reth_consensus_common::validation::{
     validate_4844_header_standalone, validate_against_parent_4844,
     validate_against_parent_eip1559_base_fee, validate_against_parent_hash_number,
-    validate_against_parent_timestamp, validate_block_pre_execution, validate_header_base_fee,
+    validate_against_parent_timestamp, validate_against_parent_timestamp_inclusive,
+    validate_block_pre_execution, validate_header_base_fee,
     validate_header_extradata, validate_header_gas,
 };
 use reth_primitives::{
@@ -130,7 +131,7 @@ impl Consensus for EthBeaconConsensus {
     ) -> Result<(), ConsensusError> {
         validate_against_parent_hash_number(header, parent)?;
 
-        validate_against_parent_timestamp(header, parent)?;
+        validate_against_parent_timestamp_inclusive(header, parent)?; // by kasplex
 
         // TODO Check difficulty increment between parent and self
         // Ace age did increment it by some formula that we need to follow.
