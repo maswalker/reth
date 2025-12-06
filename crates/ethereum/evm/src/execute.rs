@@ -1314,7 +1314,7 @@ mod tests {
 
         let executor = provider.executor(StateProviderDatabase::new(&db));
 
-        let BlockExecutionOutput { receipts, requests, .. } = executor
+        let BlockExecutionOutput { receipts, requests, db: _, valid_transaction_indices: _, .. } = executor
             .execute(
                 (
                     &Block {
