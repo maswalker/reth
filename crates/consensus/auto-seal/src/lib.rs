@@ -404,7 +404,7 @@ impl StorageInner {
         );
 
         // execute the block
-        let BlockExecutionOutput { state, receipts, requests: block_execution_requests, .. } =
+        let BlockExecutionOutput { state, receipts, requests: block_execution_requests, db: _, valid_transaction_indices: _, .. } =
             executor.executor(&mut db).execute((&block, U256::ZERO).into())?;
         let execution_outcome = ExecutionOutcome::new(
             state,

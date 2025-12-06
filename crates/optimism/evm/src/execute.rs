@@ -340,7 +340,7 @@ where
     DB: Database<Error = ProviderError>,
 {
     type Input<'a> = BlockExecutionInput<'a, BlockWithSenders>;
-    type Output = BlockExecutionOutput<Receipt>;
+    type Output = BlockExecutionOutput<Receipt, DB>;
     type Error = BlockExecutionError;
 
     /// Executes the block and commits the state changes.
@@ -357,11 +357,16 @@ where
         // NOTE: we need to merge keep the reverts for the bundle retention
         self.state.merge_transitions(BundleRetention::Reverts);
 
+        // Generate valid_transaction_indices: all transactions are considered valid
+        let valid_transaction_indices: Vec<usize> = (0..receipts.len()).collect();
+        
         Ok(BlockExecutionOutput {
             state: self.state.take_bundle(),
             receipts,
             requests: vec![],
             gas_used,
+            db: self.state,
+            valid_transaction_indices,
         })
     }
 }

@@ -47,17 +47,23 @@ impl BlockExecutorProvider for MockExecutorProvider {
 
 impl<DB> Executor<DB> for MockExecutorProvider {
     type Input<'a> = BlockExecutionInput<'a, BlockWithSenders>;
-    type Output = BlockExecutionOutput<Receipt>;
+    type Output = BlockExecutionOutput<Receipt, DB>;
     type Error = BlockExecutionError;
 
     fn execute(self, _: Self::Input<'_>) -> Result<Self::Output, Self::Error> {
         let ExecutionOutcome { bundle, receipts, requests, first_block: _ } =
             self.exec_results.lock().pop().unwrap();
+        // For test utils, we create a dummy State. This is only used in tests.
+        use reth_revm::State;
+        use revm_primitives::db::EmptyDBTyped;
+        let db = State::builder().with_database(EmptyDBTyped::default()).build();
         Ok(BlockExecutionOutput {
             state: bundle,
             receipts: receipts.into_iter().flatten().flatten().collect(),
             requests: requests.into_iter().flatten().collect(),
             gas_used: 0,
+            db,
+            valid_transaction_indices: vec![],
         })
     }
 }

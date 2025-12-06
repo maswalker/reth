@@ -65,7 +65,7 @@ impl<EvmConfig> EthExecutorProvider<EvmConfig>
 where
     EvmConfig: ConfigureEvm,
 {
-    fn eth_executor<DB>(&self, db: DB) -> EthBlockExecutor<EvmConfig, DB>
+    pub fn eth_executor<DB>(&self, db: DB) -> EthBlockExecutor<EvmConfig, DB>
     where
         DB: Database<Error = ProviderError>,
     {
@@ -111,6 +111,7 @@ struct EthExecuteOutput {
     receipts: Vec<Receipt>,
     requests: Vec<Request>,
     gas_used: u64,
+    valid_transaction_indices: Vec<usize>,
 }
 
 /// Helper container type for EVM with chain spec.
@@ -163,7 +164,8 @@ where
         // execute transactions
         let mut cumulative_gas_used = 0;
         let mut receipts = Vec::with_capacity(block.body.len());
-        for (sender, transaction) in block.transactions_with_sender() {
+        let mut valid_transaction_indices = Vec::new();
+        for (idx, (sender, transaction)) in block.transactions_with_sender().enumerate() {
             // The sum of the transaction’s gas limit, Tg, and the gas utilized in this block prior,
             // must be no greater than the block’s gasLimit.
             let block_available_gas = block.header.gas_limit - cumulative_gas_used;
@@ -204,6 +206,9 @@ where
                     ..Default::default()
                 },
             );
+            
+            // All executed transactions are considered valid
+            valid_transaction_indices.push(idx);
         }
 
         let requests = if self.chain_spec.is_prague_active_at_timestamp(block.timestamp) {
@@ -219,7 +224,7 @@ where
             vec![]
         };
 
-        Ok(EthExecuteOutput { receipts, requests, gas_used: cumulative_gas_used })
+        Ok(EthExecuteOutput { receipts, requests, gas_used: cumulative_gas_used, valid_transaction_indices })
     }
 }
 
@@ -377,7 +382,7 @@ where
     DB: Database<Error = ProviderError>,
 {
     type Input<'a> = BlockExecutionInput<'a, BlockWithSenders>;
-    type Output = BlockExecutionOutput<Receipt>;
+    type Output = BlockExecutionOutput<Receipt, DB>;
     type Error = BlockExecutionError;
 
     /// Executes the block and commits the state changes.
@@ -389,13 +394,13 @@ where
     /// State changes are committed to the database.
     fn execute(mut self, input: Self::Input<'_>) -> Result<Self::Output, Self::Error> {
         let BlockExecutionInput { block, total_difficulty } = input;
-        let EthExecuteOutput { receipts, requests, gas_used } =
+        let EthExecuteOutput { receipts, requests, gas_used, valid_transaction_indices } =
             self.execute_without_verification(block, total_difficulty)?;
 
         // NOTE: we need to merge keep the reverts for the bundle retention
         self.state.merge_transitions(BundleRetention::Reverts);
 
-        Ok(BlockExecutionOutput { state: self.state.take_bundle(), receipts, requests, gas_used })
+        Ok(BlockExecutionOutput { state: self.state.take_bundle(), receipts, requests, gas_used, db: self.state, valid_transaction_indices })
     }
 }
 

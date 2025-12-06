@@ -93,7 +93,7 @@ pub trait BatchExecutor<DB> {
 ///
 /// TODO(mattsse): combine with `ExecutionOutcome`
 #[derive(Debug)]
-pub struct BlockExecutionOutput<T> {
+pub struct BlockExecutionOutput<T, DB> {
     /// The changed state of the block after execution.
     pub state: BundleState,
     /// All the receipts of the transactions in the block.
@@ -102,6 +102,10 @@ pub struct BlockExecutionOutput<T> {
     pub requests: Vec<Request>,
     /// The total gas used by the block.
     pub gas_used: u64,
+    /// The full state.
+    pub db: reth_revm::State<DB>,
+    /// The indices of valid transactions.
+    pub valid_transaction_indices: Vec<usize>,
 }
 
 /// A helper type for ethereum block inputs that consists of a block and the total difficulty.
@@ -142,7 +146,7 @@ pub trait BlockExecutorProvider: Send + Sync + Clone + Unpin + 'static {
     type Executor<DB: Database<Error = ProviderError>>: for<'a> Executor<
         DB,
         Input<'a> = BlockExecutionInput<'a, BlockWithSenders>,
-        Output = BlockExecutionOutput<Receipt>,
+        Output = BlockExecutionOutput<Receipt, DB>,
         Error = BlockExecutionError,
     >;
 
@@ -206,7 +210,7 @@ mod tests {
 
     impl<DB> Executor<DB> for TestExecutor<DB> {
         type Input<'a> = BlockExecutionInput<'a, BlockWithSenders>;
-        type Output = BlockExecutionOutput<Receipt>;
+        type Output = BlockExecutionOutput<Receipt, DB>;
         type Error = BlockExecutionError;
 
         fn execute(self, _input: Self::Input<'_>) -> Result<Self::Output, Self::Error> {
