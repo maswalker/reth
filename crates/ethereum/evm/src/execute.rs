@@ -28,14 +28,13 @@ use reth_revm::{
         apply_withdrawal_requests_contract_call, post_block_balance_increments,
     },
     Evm, State,
+    JournaledState,
 };
 use revm_primitives::{
     db::{Database, DatabaseCommit},
     BlockEnv, CfgEnvWithHandlerCfg, EnvWithHandlerCfg, ResultAndState,
 };
-use revm::primitives::{EVMError, JournaledState};
 use std::{collections::HashSet, sync::Arc};
-use tracing::debug;
 
 /// Provides executors to execute regular ethereum blocks
 #[derive(Debug, Clone)]
@@ -199,17 +198,7 @@ where
                 evm.context.evm.journaled_state = JournaledState::new(evm.context.evm.journaled_state.spec, HashSet::new());
 
                 if optimistic {
-                    match res {
-                        Err(BlockValidationError::EVM { hash: _, error }) => match *error {
-                            EVMError::Transaction(_invalid_transaction) => {}
-                            _ => {
-                                debug!("optimistic skipping tx due to evm error: {:?}", error);
-                            }
-                        },
-                        _ => {
-                            debug!("optimistic skipping tx due to other error: {:?}", &res);
-                        }
-                    }
+                    // In optimistic mode, skip invalid transactions and continue
                     continue;
                 }
 
