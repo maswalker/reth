@@ -33,7 +33,9 @@ use revm_primitives::{
     db::{Database, DatabaseCommit},
     BlockEnv, CfgEnvWithHandlerCfg, EnvWithHandlerCfg, ResultAndState,
 };
-use std::sync::Arc;
+use revm::primitives::{EVMError, JournaledState};
+use std::{collections::HashSet, sync::Arc};
+use tracing::debug;
 
 /// Provides executors to execute regular ethereum blocks
 #[derive(Debug, Clone)]
@@ -141,6 +143,7 @@ where
         &self,
         block: &BlockWithSenders,
         mut evm: Evm<'_, Ext, &mut State<DB>>,
+        optimistic: bool,
     ) -> Result<EthExecuteOutput, BlockExecutionError>
     where
         DB: Database<Error = ProviderError>,
@@ -166,10 +169,13 @@ where
         let mut receipts = Vec::with_capacity(block.body.len());
         let mut valid_transaction_indices = Vec::new();
         for (idx, (sender, transaction)) in block.transactions_with_sender().enumerate() {
-            // The sum of the transaction’s gas limit, Tg, and the gas utilized in this block prior,
-            // must be no greater than the block’s gasLimit.
+            // The sum of the transaction's gas limit, Tg, and the gas utilized in this block prior,
+            // must be no greater than the block's gasLimit.
             let block_available_gas = block.header.gas_limit - cumulative_gas_used;
             if transaction.gas_limit() > block_available_gas {
+                if optimistic {
+                    continue;
+                }
                 return Err(BlockValidationError::TransactionGasLimitMoreThanAvailableBlockGas {
                     transaction_gas_limit: transaction.gas_limit(),
                     block_available_gas,
@@ -180,13 +186,37 @@ where
             EvmConfig::fill_tx_env(evm.tx_mut(), transaction, *sender);
 
             // Execute transaction.
-            let ResultAndState { result, state } = evm.transact().map_err(move |err| {
+            let res = evm.transact().map_err(move |err| {
                 // Ensure hash is calculated for error log, if not already done
                 BlockValidationError::EVM {
                     hash: transaction.recalculate_hash(),
                     error: err.into(),
                 }
-            })?;
+            });
+            
+            if res.is_err() {
+                // Clear the state for the next tx
+                evm.context.evm.journaled_state = JournaledState::new(evm.context.evm.journaled_state.spec, HashSet::new());
+
+                if optimistic {
+                    match res {
+                        Err(BlockValidationError::EVM { hash: _, error }) => match *error {
+                            EVMError::Transaction(_invalid_transaction) => {}
+                            _ => {
+                                debug!("optimistic skipping tx due to evm error: {:?}", error);
+                            }
+                        },
+                        _ => {
+                            debug!("optimistic skipping tx due to other error: {:?}", &res);
+                        }
+                    }
+                    continue;
+                }
+
+                return Err(BlockExecutionError::Validation(res.err().unwrap()));
+            }
+
+            let ResultAndState { result, state } = res.unwrap();
             evm.db_mut().commit(state);
 
             // append gas used
@@ -239,12 +269,20 @@ pub struct EthBlockExecutor<EvmConfig, DB> {
     executor: EthEvmExecutor<EvmConfig>,
     /// The state to use for execution
     state: State<DB>,
+    /// Allows the execution to continue even when a tx is invalid
+    optimistic: bool,
 }
 
 impl<EvmConfig, DB> EthBlockExecutor<EvmConfig, DB> {
     /// Creates a new Ethereum block executor.
     pub const fn new(chain_spec: Arc<ChainSpec>, evm_config: EvmConfig, state: State<DB>) -> Self {
-        Self { executor: EthEvmExecutor { chain_spec, evm_config }, state }
+        Self { executor: EthEvmExecutor { chain_spec, evm_config }, state, optimistic: false }
+    }
+
+    /// Optimistic execution - allows execution to continue even when a tx is invalid
+    pub fn optimistic(mut self, optimistic: bool) -> Self {
+        self.optimistic = optimistic;
+        self
     }
 
     #[inline]
@@ -301,7 +339,7 @@ where
         let env = self.evm_env_for_block(&block.header, total_difficulty);
         let output = {
             let evm = self.executor.evm_config.evm_with_env(&mut self.state, env);
-            self.executor.execute_state_transitions(block, evm)
+            self.executor.execute_state_transitions(block, evm, self.optimistic)
         }?;
 
         // 3. apply post execution changes
