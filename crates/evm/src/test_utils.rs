@@ -54,7 +54,7 @@ impl<DB> Executor<DB> for MockExecutorProvider {
         let ExecutionOutcome { bundle, receipts, requests, first_block: _ } =
             self.exec_results.lock().pop().unwrap();
         // For test utils, we create a dummy State. This is only used in tests.
-        use reth_revm::State;
+        use revm::db::State;
         use revm_primitives::db::EmptyDBTyped;
         let db = State::builder().with_database(EmptyDBTyped::default()).build();
         Ok(BlockExecutionOutput {

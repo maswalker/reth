@@ -3,7 +3,7 @@
 use reth_execution_types::ExecutionOutcome;
 use reth_primitives::{BlockNumber, BlockWithSenders, Receipt, Request, U256};
 use reth_prune_types::PruneModes;
-use revm::db::BundleState;
+use revm::db::{BundleState, State};
 use revm_primitives::db::Database;
 
 pub use reth_execution_errors::{BlockExecutionError, BlockValidationError};
@@ -103,7 +103,7 @@ pub struct BlockExecutionOutput<T, DB> {
     /// The total gas used by the block.
     pub gas_used: u64,
     /// The full state.
-    pub db: reth_revm::State<DB>,
+    pub db: State<DB>,
     /// The indices of valid transactions.
     pub valid_transaction_indices: Vec<usize>,
 }
