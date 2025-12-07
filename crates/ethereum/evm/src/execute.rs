@@ -332,7 +332,9 @@ where
         }?;
 
         // 3. apply post execution changes
-        self.post_execution(block, total_difficulty)?;
+        // Use actual gas_used from execution output, not block.header.gas_used
+        // This ensures consistency with geth which uses actual gas_used
+        self.post_execution(block, total_difficulty, output.gas_used, &output.receipts)?;
 
         Ok(output)
     }
@@ -350,6 +352,8 @@ where
         &mut self,
         block: &BlockWithSenders,
         total_difficulty: U256,
+        actual_gas_used: u64,
+        receipts: &[Receipt],
     ) -> Result<(), BlockExecutionError> {
         let mut balance_increments = post_block_balance_increments(
             self.chain_spec(),
@@ -376,20 +380,52 @@ where
             *balance_increments.entry(DAO_HARDFORK_BENEFICIARY).or_default() += drained_balance;
         }
 
-        // [kasplex]: Send base fee to treasury address instead of burning
+        // [kasplex]: Send base fee to treasury address and effective tip to coinbase
         #[cfg(feature = "kasplex")]
         if self.chain_spec().is_kasplex() {
             if let Some(base_fee_per_gas) = block.header.base_fee_per_gas {
-                // Calculate total base fee: gas_used * base_fee_per_gas
-                // Note: This is an approximation. In reality, each transaction's base fee
-                // should be calculated individually, but for simplicity we use block gas_used
-                let total_base_fee = U256::from(block.header.gas_used)
+                // Calculate total base fee: actual_gas_used * base_fee_per_gas
+                // Use actual_gas_used from execution output, not block.header.gas_used
+                // This ensures consistency with geth which uses actual gas_used from execution
+                let total_base_fee = U256::from(actual_gas_used)
                     .saturating_mul(U256::from(base_fee_per_gas));
                 
                 // Convert to u128 for balance increment (may lose precision for very large values)
                 if let Ok(base_fee_u128) = total_base_fee.try_into() {
                     let treasury_address = get_treasury_address(self.chain_spec());
                     *balance_increments.entry(treasury_address).or_default() += base_fee_u128;
+                }
+
+                // Calculate and distribute effective tip to coinbase
+                // This matches geth's behavior: gasUsed * effectiveTip -> coinbase
+                let mut total_effective_tip = U256::ZERO;
+
+                // Iterate through transactions and receipts to calculate effective tip
+                for (idx, (_sender, transaction)) in block.transactions_with_sender().enumerate() {
+                    if idx >= receipts.len() {
+                        continue;
+                    }
+
+                    let receipt = &receipts[idx];
+                    // Calculate gas used for this transaction
+                    let tx_gas_used = if idx == 0 {
+                        receipt.cumulative_gas_used
+                    } else {
+                        receipt.cumulative_gas_used - receipts[idx - 1].cumulative_gas_used
+                    };
+
+                    // Calculate effective tip for this transaction using the built-in method
+                    // This handles both EIP-1559 and legacy transactions correctly
+                    if let Some(effective_tip_per_gas) = transaction.effective_tip_per_gas(Some(base_fee_per_gas)) {
+                        // Accumulate: gasUsed * effectiveTip
+                        total_effective_tip += U256::from(tx_gas_used)
+                            .saturating_mul(U256::from(effective_tip_per_gas));
+                    }
+                }
+
+                // Add effective tip to coinbase (beneficiary)
+                if let Ok(tip_u128) = total_effective_tip.try_into() {
+                    *balance_increments.entry(block.beneficiary).or_default() += tip_u128;
                 }
             }
         }
