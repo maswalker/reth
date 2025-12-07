@@ -382,19 +382,22 @@ where
 
         // [kasplex]: Send base fee to treasury address and effective tip to coinbase
         #[cfg(feature = "kasplex")]
-        if self.chain_spec().is_kasplex() {
-            if let Some(base_fee_per_gas) = block.header.base_fee_per_gas {
-                // Calculate total base fee: actual_gas_used * base_fee_per_gas
-                // Use actual_gas_used from execution output, not block.header.gas_used
-                // This ensures consistency with geth which uses actual gas_used from execution
-                let total_base_fee = U256::from(actual_gas_used)
-                    .saturating_mul(U256::from(base_fee_per_gas));
-                
-                // Debug: log base fee calculation
-                tracing::error!(
-                    "Base fee calculation: actual_gas_used={}, block.header.gas_used={}, base_fee_per_gas={:?}, total_base_fee={:?}",
-                    actual_gas_used, block.header.gas_used, base_fee_per_gas, total_base_fee
-                );
+        {
+            tracing::error!("[KASPLEX] post_execution: kasplex feature enabled, is_kasplex={}", self.chain_spec().is_kasplex());
+            if self.chain_spec().is_kasplex() {
+                tracing::error!("[KASPLEX] post_execution: Inside kasplex block, base_fee_per_gas={:?}", block.header.base_fee_per_gas);
+                if let Some(base_fee_per_gas) = block.header.base_fee_per_gas {
+                    // Calculate total base fee: actual_gas_used * base_fee_per_gas
+                    // Use actual_gas_used from execution output, not block.header.gas_used
+                    // This ensures consistency with geth which uses actual gas_used from execution
+                    let total_base_fee = U256::from(actual_gas_used)
+                        .saturating_mul(U256::from(base_fee_per_gas));
+                    
+                    // Debug: log base fee calculation
+                    tracing::error!(
+                        "[KASPLEX] Base fee calculation: actual_gas_used={}, block.header.gas_used={}, base_fee_per_gas={:?}, total_base_fee={:?}",
+                        actual_gas_used, block.header.gas_used, base_fee_per_gas, total_base_fee
+                    );
                 
                 // Convert to u128 for balance increment (may lose precision for very large values)
                 if let Ok(base_fee_u128) = total_base_fee.try_into() {
