@@ -484,11 +484,11 @@ where
         #[cfg(feature = "kasplex")]
         if self.chain_spec().is_kasplex() {
             let treasury_address = get_treasury_address(self.chain_spec());
-            if let Ok(Some(balance)) = self.state.balance(treasury_address) {
-                tracing::error!("[KASPLEX] Treasury {} balance BEFORE increment_balances: {:?}", treasury_address, balance);
+            if let Ok(Some(account)) = self.state.basic(treasury_address) {
+                tracing::error!("[KASPLEX] Treasury {} balance BEFORE increment_balances: {:?}", treasury_address, account.balance);
             }
-            if let Ok(Some(balance)) = self.state.balance(block.beneficiary) {
-                tracing::error!("[KASPLEX] Coinbase {} balance BEFORE increment_balances: {:?}", block.beneficiary, balance);
+            if let Ok(Some(account)) = self.state.basic(block.beneficiary) {
+                tracing::error!("[KASPLEX] Coinbase {} balance BEFORE increment_balances: {:?}", block.beneficiary, account.balance);
             }
         }
         
@@ -500,11 +500,11 @@ where
         #[cfg(feature = "kasplex")]
         if self.chain_spec().is_kasplex() {
             let treasury_address = get_treasury_address(self.chain_spec());
-            if let Ok(Some(balance)) = self.state.balance(treasury_address) {
-                tracing::error!("[KASPLEX] Treasury {} balance AFTER increment_balances: {:?}", treasury_address, balance);
+            if let Ok(Some(account)) = self.state.basic(treasury_address) {
+                tracing::error!("[KASPLEX] Treasury {} balance AFTER increment_balances: {:?}", treasury_address, account.balance);
             }
-            if let Ok(Some(balance)) = self.state.balance(block.beneficiary) {
-                tracing::error!("[KASPLEX] Coinbase {} balance AFTER increment_balances: {:?}", block.beneficiary, balance);
+            if let Ok(Some(account)) = self.state.basic(block.beneficiary) {
+                tracing::error!("[KASPLEX] Coinbase {} balance AFTER increment_balances: {:?}", block.beneficiary, account.balance);
             }
         }
 
