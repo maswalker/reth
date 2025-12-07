@@ -447,8 +447,9 @@ where
                 if let Ok(tip_u128) = total_effective_tip.try_into() {
                     *balance_increments.entry(block.beneficiary).or_default() += tip_u128;
                 }
-            }
-        }
+                } // Close: if let Some(base_fee_per_gas)
+            } // Close: if self.chain_spec().is_kasplex()
+        } // Close: #[cfg(feature = "kasplex")]
 
         // increment balances
         self.state
