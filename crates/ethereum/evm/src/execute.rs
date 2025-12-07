@@ -400,7 +400,7 @@ where
                     );
                 
                 // Convert to u128 for balance increment (may lose precision for very large values)
-                if let Ok(base_fee_u128) = total_base_fee.try_into() {
+                if let Ok(base_fee_u128) = total_base_fee.try_into::<u128>() {
                     let treasury_address = get_treasury_address(self.chain_spec());
                     let old_balance = balance_increments.get(&treasury_address).copied().unwrap_or(0);
                     *balance_increments.entry(treasury_address).or_default() += base_fee_u128;
@@ -444,7 +444,7 @@ where
                 }
 
                 // Add effective tip to coinbase (beneficiary)
-                if let Ok(tip_u128) = total_effective_tip.try_into() {
+                if let Ok(tip_u128) = total_effective_tip.try_into::<u128>() {
                     *balance_increments.entry(block.beneficiary).or_default() += tip_u128;
                 }
                 } // Close: if let Some(base_fee_per_gas)
