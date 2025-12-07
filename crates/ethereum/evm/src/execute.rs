@@ -380,7 +380,10 @@ where
             *balance_increments.entry(DAO_HARDFORK_BENEFICIARY).or_default() += drained_balance;
         }
 
-        // [kasplex]: Send base fee to treasury address and effective tip to coinbase
+        // [kasplex]: Send base fee to treasury address
+        // Note: effective_tip is automatically handled by revm during transaction execution.
+        // Revm automatically adds effective_tip to the coinbase (beneficiary) address,
+        // so we don't need to manually add it here. We only need to handle base_fee.
         #[cfg(feature = "kasplex")]
         {
             tracing::error!("[KASPLEX] post_execution: kasplex feature enabled, is_kasplex={}", self.chain_spec().is_kasplex());
@@ -414,59 +417,6 @@ where
                     tracing::error!(
                         "Base fee overflow: total_base_fee={:?} cannot fit in u128",
                         total_base_fee
-                    );
-                }
-
-                // Calculate and distribute effective tip to coinbase
-                // This matches geth's behavior: gasUsed * effectiveTip -> coinbase
-                let mut total_effective_tip = U256::ZERO;
-
-                // Iterate through transactions and receipts to calculate effective tip
-                for (idx, (_sender, transaction)) in block.transactions_with_sender().enumerate() {
-                    if idx >= receipts.len() {
-                        continue;
-                    }
-
-                    let receipt = &receipts[idx];
-                    // Calculate gas used for this transaction
-                    let tx_gas_used = if idx == 0 {
-                        receipt.cumulative_gas_used
-                    } else {
-                        receipt.cumulative_gas_used - receipts[idx - 1].cumulative_gas_used
-                    };
-
-                    // Calculate effective tip for this transaction using the built-in method
-                    // This handles both EIP-1559 and legacy transactions correctly
-                    if let Some(effective_tip_per_gas) = transaction.effective_tip_per_gas(Some(base_fee_per_gas)) {
-                        // Accumulate: gasUsed * effectiveTip
-                        let tx_effective_tip = U256::from(tx_gas_used)
-                            .saturating_mul(U256::from(effective_tip_per_gas));
-                        total_effective_tip += tx_effective_tip;
-                        tracing::error!(
-                            "[KASPLEX] Transaction {}: gas_used={}, effective_tip_per_gas={:?}, tx_effective_tip={:?}",
-                            idx, tx_gas_used, effective_tip_per_gas, tx_effective_tip
-                        );
-                    }
-                }
-
-                tracing::error!(
-                    "[KASPLEX] Total effective tip: {:?}, coinbase={}",
-                    total_effective_tip, block.beneficiary
-                );
-
-                // Add effective tip to coinbase (beneficiary)
-                if let Ok(tip_u128) = TryInto::<u128>::try_into(total_effective_tip) {
-                    let old_coinbase_balance = balance_increments.get(&block.beneficiary).copied().unwrap_or(0);
-                    *balance_increments.entry(block.beneficiary).or_default() += tip_u128;
-                    let new_coinbase_balance = balance_increments.get(&block.beneficiary).copied().unwrap_or(0);
-                    tracing::error!(
-                        "[KASPLEX] Coinbase {}: old_balance_increment={}, effective_tip={}, new_balance_increment={}",
-                        block.beneficiary, old_coinbase_balance, tip_u128, new_coinbase_balance
-                    );
-                } else {
-                    tracing::error!(
-                        "[KASPLEX] Effective tip overflow: total_effective_tip={:?} cannot fit in u128",
-                        total_effective_tip
                     );
                 }
                 } // Close: if let Some(base_fee_per_gas)
