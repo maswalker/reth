@@ -390,10 +390,27 @@ where
                 let total_base_fee = U256::from(actual_gas_used)
                     .saturating_mul(U256::from(base_fee_per_gas));
                 
+                // Debug: log base fee calculation
+                tracing::error!(
+                    "Base fee calculation: actual_gas_used={}, block.header.gas_used={}, base_fee_per_gas={:?}, total_base_fee={:?}",
+                    actual_gas_used, block.header.gas_used, base_fee_per_gas, total_base_fee
+                );
+                
                 // Convert to u128 for balance increment (may lose precision for very large values)
                 if let Ok(base_fee_u128) = total_base_fee.try_into() {
                     let treasury_address = get_treasury_address(self.chain_spec());
+                    let old_balance = balance_increments.get(&treasury_address).copied().unwrap_or(0);
                     *balance_increments.entry(treasury_address).or_default() += base_fee_u128;
+                    let new_balance = balance_increments.get(&treasury_address).copied().unwrap_or(0);
+                    tracing::error!(
+                        "Treasury address {}: old_balance_increment={}, base_fee={}, new_balance_increment={}",
+                        treasury_address, old_balance, base_fee_u128, new_balance
+                    );
+                } else {
+                    tracing::error!(
+                        "Base fee overflow: total_base_fee={:?} cannot fit in u128",
+                        total_base_fee
+                    );
                 }
 
                 // Calculate and distribute effective tip to coinbase
