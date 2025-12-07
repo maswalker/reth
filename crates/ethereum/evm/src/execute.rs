@@ -474,9 +474,39 @@ where
         } // Close: #[cfg(feature = "kasplex")]
 
         // increment balances
+        // Debug: log balance_increments before applying
+        tracing::error!("[KASPLEX] Before increment_balances: balance_increments count={}", balance_increments.len());
+        for (address, increment) in &balance_increments {
+            tracing::error!("[KASPLEX]   {}: increment={}", address, increment);
+        }
+        
+        // Debug: log account balances before increment_balances
+        #[cfg(feature = "kasplex")]
+        if self.chain_spec().is_kasplex() {
+            let treasury_address = get_treasury_address(self.chain_spec());
+            if let Ok(Some(balance)) = self.state.balance(treasury_address) {
+                tracing::error!("[KASPLEX] Treasury {} balance BEFORE increment_balances: {:?}", treasury_address, balance);
+            }
+            if let Ok(Some(balance)) = self.state.balance(block.beneficiary) {
+                tracing::error!("[KASPLEX] Coinbase {} balance BEFORE increment_balances: {:?}", block.beneficiary, balance);
+            }
+        }
+        
         self.state
             .increment_balances(balance_increments)
             .map_err(|_| BlockValidationError::IncrementBalanceFailed)?;
+        
+        // Debug: log account balances after increment_balances
+        #[cfg(feature = "kasplex")]
+        if self.chain_spec().is_kasplex() {
+            let treasury_address = get_treasury_address(self.chain_spec());
+            if let Ok(Some(balance)) = self.state.balance(treasury_address) {
+                tracing::error!("[KASPLEX] Treasury {} balance AFTER increment_balances: {:?}", treasury_address, balance);
+            }
+            if let Ok(Some(balance)) = self.state.balance(block.beneficiary) {
+                tracing::error!("[KASPLEX] Coinbase {} balance AFTER increment_balances: {:?}", block.beneficiary, balance);
+            }
+        }
 
         Ok(())
     }
