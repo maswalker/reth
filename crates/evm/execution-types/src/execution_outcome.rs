@@ -7,9 +7,43 @@ use reth_primitives::{
 use reth_trie::HashedPostState;
 use revm::{
     db::{states::BundleState, BundleAccount},
-    primitives::AccountInfo,
+    primitives::{AccountInfo, EvmStorageSlot},
 };
 use std::collections::HashMap;
+
+/// Extension trait for BundleAccount to convert storage to EvmStorageSlot
+/// This is needed because in kasplex branch, BundleAccount.storage contains StorageSlot
+/// which only has present_value, but we need EvmStorageSlot with original_value for is_changed() to work.
+pub trait BundleAccountStorageExt {
+    /// Convert storage from StorageSlot to EvmStorageSlot
+    /// Uses a sentinel value for original_value to ensure is_changed() returns true for all accessed storage slots.
+    fn storage_as_evm_slots(&self) -> HashMap<U256, EvmStorageSlot>;
+}
+
+impl BundleAccountStorageExt for BundleAccount {
+    fn storage_as_evm_slots(&self) -> HashMap<U256, EvmStorageSlot> {
+        self.storage
+            .iter()
+            .map(|(key, slot)| {
+                // Use U256::MAX as sentinel for original_value to force is_changed() = true
+                // This ensures all storage slots that were accessed during execution are committed
+                let original_value = if slot.present_value == U256::MAX {
+                    // If present_value is MAX, use a different sentinel to ensure is_changed() = true
+                    U256::MAX - U256::from(1)
+                } else {
+                    // Use MAX as sentinel to ensure is_changed() returns true
+                    U256::MAX
+                };
+                
+                (*key, EvmStorageSlot {
+                    present_value: slot.present_value,
+                    original_value,
+                    ..Default::default()
+                })
+            })
+            .collect()
+    }
+}
 
 /// Represents the outcome of block execution, including post-execution changes and reverts.
 ///
@@ -126,6 +160,7 @@ impl ExecutionOutcome {
     pub fn bundle_accounts_iter(&self) -> impl Iterator<Item = (Address, &BundleAccount)> {
         self.bundle.state().iter().map(|(a, acc)| (*a, acc))
     }
+
 
     /// Get account if account is known.
     pub fn account(&self, address: &Address) -> Option<Option<Account>> {
