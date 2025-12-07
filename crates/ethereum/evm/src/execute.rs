@@ -439,14 +439,35 @@ where
                     // This handles both EIP-1559 and legacy transactions correctly
                     if let Some(effective_tip_per_gas) = transaction.effective_tip_per_gas(Some(base_fee_per_gas)) {
                         // Accumulate: gasUsed * effectiveTip
-                        total_effective_tip += U256::from(tx_gas_used)
+                        let tx_effective_tip = U256::from(tx_gas_used)
                             .saturating_mul(U256::from(effective_tip_per_gas));
+                        total_effective_tip += tx_effective_tip;
+                        tracing::error!(
+                            "[KASPLEX] Transaction {}: gas_used={}, effective_tip_per_gas={:?}, tx_effective_tip={:?}",
+                            idx, tx_gas_used, effective_tip_per_gas, tx_effective_tip
+                        );
                     }
                 }
 
+                tracing::error!(
+                    "[KASPLEX] Total effective tip: {:?}, coinbase={}",
+                    total_effective_tip, block.beneficiary
+                );
+
                 // Add effective tip to coinbase (beneficiary)
                 if let Ok(tip_u128) = TryInto::<u128>::try_into(total_effective_tip) {
+                    let old_coinbase_balance = balance_increments.get(&block.beneficiary).copied().unwrap_or(0);
                     *balance_increments.entry(block.beneficiary).or_default() += tip_u128;
+                    let new_coinbase_balance = balance_increments.get(&block.beneficiary).copied().unwrap_or(0);
+                    tracing::error!(
+                        "[KASPLEX] Coinbase {}: old_balance_increment={}, effective_tip={}, new_balance_increment={}",
+                        block.beneficiary, old_coinbase_balance, tip_u128, new_coinbase_balance
+                    );
+                } else {
+                    tracing::error!(
+                        "[KASPLEX] Effective tip overflow: total_effective_tip={:?} cannot fit in u128",
+                        total_effective_tip
+                    );
                 }
                 } // Close: if let Some(base_fee_per_gas)
             } // Close: if self.chain_spec().is_kasplex()
