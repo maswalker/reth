@@ -20,14 +20,12 @@ pub fn get_treasury_address(chain_spec: &ChainSpec) -> Address {
     let padding = "0".repeat(padding_len);
     
     let address_str = format!("0x{}{}{}", chain_id_str, padding, suffix);
-    // Parse hex string to address using alloy_primitives::hex
-    if let Ok(addr) = alloy_primitives::hex::FromHex::from_hex(&address_str) {
-        addr
-    } else {
+    // Parse hex string to address
+    address_str.parse().unwrap_or_else(|_| {
         // Fallback: use a simple hash-based address if parsing fails
         let hash = keccak256(format!("kasplex_treasury_{}", chain_id));
         Address::from_slice(&hash[..20])
-    }
+    })
 }
 
 #[cfg(test)]
