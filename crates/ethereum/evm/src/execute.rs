@@ -387,10 +387,11 @@ where
             if self.chain_spec().is_kasplex() {
                 tracing::error!("[KASPLEX] post_execution: Inside kasplex block, base_fee_per_gas={:?}", block.header.base_fee_per_gas);
                 if let Some(base_fee_per_gas) = block.header.base_fee_per_gas {
-                    // Calculate total base fee: actual_gas_used * base_fee_per_gas
-                    // Use actual_gas_used from execution output, not block.header.gas_used
-                    // This ensures consistency with geth which uses actual gas_used from execution
-                    let total_base_fee = U256::from(actual_gas_used)
+                    // Calculate total base fee: block.header.gas_used * base_fee_per_gas
+                    // Use block.header.gas_used (total block gas) instead of actual_gas_used
+                    // because base fee is a block-level concept and should be calculated
+                    // based on the total gas used in the block, not per-execution gas
+                    let total_base_fee = U256::from(block.header.gas_used)
                         .saturating_mul(U256::from(base_fee_per_gas));
                     
                     // Debug: log base fee calculation
