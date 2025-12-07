@@ -386,9 +386,7 @@ where
         // so we don't need to manually add it here. We only need to handle base_fee.
         #[cfg(feature = "kasplex")]
         {
-            tracing::error!("[KASPLEX] post_execution: kasplex feature enabled, is_kasplex={}", self.chain_spec().is_kasplex());
             if self.chain_spec().is_kasplex() {
-                tracing::error!("[KASPLEX] post_execution: Inside kasplex block, base_fee_per_gas={:?}", block.header.base_fee_per_gas);
                 if let Some(base_fee_per_gas) = block.header.base_fee_per_gas {
                     // Calculate total base fee: block.header.gas_used * base_fee_per_gas
                     // Use block.header.gas_used (total block gas) instead of actual_gas_used
@@ -396,67 +394,20 @@ where
                     // based on the total gas used in the block, not per-execution gas
                     let total_base_fee = U256::from(block.header.gas_used)
                         .saturating_mul(U256::from(base_fee_per_gas));
-                    
-                    // Debug: log base fee calculation
-                    tracing::error!(
-                        "[KASPLEX] Base fee calculation: actual_gas_used={}, block.header.gas_used={}, base_fee_per_gas={:?}, total_base_fee={:?}",
-                        actual_gas_used, block.header.gas_used, base_fee_per_gas, total_base_fee
-                    );
                 
-                // Convert to u128 for balance increment (may lose precision for very large values)
-                if let Ok(base_fee_u128) = TryInto::<u128>::try_into(total_base_fee) {
-                    let treasury_address = get_treasury_address(self.chain_spec());
-                    let old_balance = balance_increments.get(&treasury_address).copied().unwrap_or(0);
-                    *balance_increments.entry(treasury_address).or_default() += base_fee_u128;
-                    let new_balance = balance_increments.get(&treasury_address).copied().unwrap_or(0);
-                    tracing::error!(
-                        "Treasury address {}: old_balance_increment={}, base_fee={}, new_balance_increment={}",
-                        treasury_address, old_balance, base_fee_u128, new_balance
-                    );
-                } else {
-                    tracing::error!(
-                        "Base fee overflow: total_base_fee={:?} cannot fit in u128",
-                        total_base_fee
-                    );
+                    // Convert to u128 for balance increment (may lose precision for very large values)
+                    if let Ok(base_fee_u128) = TryInto::<u128>::try_into(total_base_fee) {
+                        let treasury_address = get_treasury_address(self.chain_spec());
+                        *balance_increments.entry(treasury_address).or_default() += base_fee_u128;
+                    }
                 }
-                } // Close: if let Some(base_fee_per_gas)
-            } // Close: if self.chain_spec().is_kasplex()
-        } // Close: #[cfg(feature = "kasplex")]
+            }
+        }
 
         // increment balances
-        // Debug: log balance_increments before applying
-        tracing::error!("[KASPLEX] Before increment_balances: balance_increments count={}", balance_increments.len());
-        for (address, increment) in &balance_increments {
-            tracing::error!("[KASPLEX]   {}: increment={}", address, increment);
-        }
-        
-        // Debug: log account balances before increment_balances
-        #[cfg(feature = "kasplex")]
-        if self.chain_spec().is_kasplex() {
-            let treasury_address = get_treasury_address(self.chain_spec());
-            if let Ok(Some(account)) = self.state.basic(treasury_address) {
-                tracing::error!("[KASPLEX] Treasury {} balance BEFORE increment_balances: {:?}", treasury_address, account.balance);
-            }
-            if let Ok(Some(account)) = self.state.basic(block.beneficiary) {
-                tracing::error!("[KASPLEX] Coinbase {} balance BEFORE increment_balances: {:?}", block.beneficiary, account.balance);
-            }
-        }
-        
         self.state
             .increment_balances(balance_increments)
             .map_err(|_| BlockValidationError::IncrementBalanceFailed)?;
-        
-        // Debug: log account balances after increment_balances
-        #[cfg(feature = "kasplex")]
-        if self.chain_spec().is_kasplex() {
-            let treasury_address = get_treasury_address(self.chain_spec());
-            if let Ok(Some(account)) = self.state.basic(treasury_address) {
-                tracing::error!("[KASPLEX] Treasury {} balance AFTER increment_balances: {:?}", treasury_address, account.balance);
-            }
-            if let Ok(Some(account)) = self.state.basic(block.beneficiary) {
-                tracing::error!("[KASPLEX] Coinbase {} balance AFTER increment_balances: {:?}", block.beneficiary, account.balance);
-            }
-        }
 
         Ok(())
     }

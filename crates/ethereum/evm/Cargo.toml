@@ -27,9 +27,6 @@ revm-primitives.workspace = true
 alloy-eips.workspace = true
 alloy-sol-types.workspace = true
 
-# Tracing
-tracing = { workspace = true, optional = true }
-
 [dev-dependencies]
 reth-testing-utils.workspace = true
 reth-revm = { workspace = true, features = ["test-utils"] }
@@ -41,5 +38,4 @@ kasplex = [
     "reth-chainspec/kasplex",
     "reth-primitives/kasplex",
     "reth-ethereum-consensus/kasplex",
-    "dep:tracing",
 ]
