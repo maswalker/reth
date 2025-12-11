@@ -486,7 +486,7 @@ fn kasplex_genesis(chain_id: u64) -> Genesis {
         berlin_block: Some(0),
         london_block: Some(0),
         shanghai_time: Some(0),
-        cancun_time: Some(0),
+        cancun_time: None, // Kasplex does not support Cancun
         terminal_total_difficulty: Some(U256::ZERO),
         terminal_total_difficulty_passed: true,
         ..Default::default()
@@ -535,7 +535,7 @@ pub static KASPLEX_MAINNET: Lazy<Arc<ChainSpec>> = Lazy::new(|| {
                 ForkCondition::TTD { fork_block: Some(0), total_difficulty: U256::from(0) },
             ),
             (Hardfork::Shanghai, ForkCondition::Timestamp(0)),
-            (Hardfork::Cancun, ForkCondition::Timestamp(0)),
+            // Cancun is not supported on Kasplex
         ]),
         base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
         deposit_contract: None,
@@ -569,7 +569,7 @@ pub static KASPLEX_INTERNAL_L2: Lazy<Arc<ChainSpec>> = Lazy::new(|| {
                 ForkCondition::TTD { fork_block: Some(0), total_difficulty: U256::from(0) },
             ),
             (Hardfork::Shanghai, ForkCondition::Timestamp(0)),
-            (Hardfork::Cancun, ForkCondition::Timestamp(0)),
+            // Cancun is not supported on Kasplex
         ]),
         base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
         deposit_contract: None,
@@ -603,7 +603,7 @@ pub static KASPLEX_TESTNET: Lazy<Arc<ChainSpec>> = Lazy::new(|| {
                 ForkCondition::TTD { fork_block: Some(0), total_difficulty: U256::from(0) },
             ),
             (Hardfork::Shanghai, ForkCondition::Timestamp(0)),
-            (Hardfork::Cancun, ForkCondition::Timestamp(0)),
+            // Cancun is not supported on Kasplex
         ]),
         base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
         deposit_contract: None,
@@ -637,7 +637,7 @@ pub static KASPLEX_DEVNET: Lazy<Arc<ChainSpec>> = Lazy::new(|| {
                 ForkCondition::TTD { fork_block: Some(0), total_difficulty: U256::from(0) },
             ),
             (Hardfork::Shanghai, ForkCondition::Timestamp(0)),
-            (Hardfork::Cancun, ForkCondition::Timestamp(0)),
+            // Cancun is not supported on Kasplex
         ]),
         base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
         deposit_contract: None,
